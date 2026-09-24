@@ -1,5 +1,7 @@
 # MVP-OS
 
+[![CI](https://github.com/plarrip/mvp-os/actions/workflows/ci.yml/badge.svg)](https://github.com/plarrip/mvp-os/actions/workflows/ci.yml)
+
 A product-development operating system that turns an idea into a validated MVP,
 lean. It is not primarily a programming framework.
 

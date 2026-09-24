@@ -1,8 +1,12 @@
 # Changelog
 
-## Unreleased
+## 0.8.0
 
 Hardening pass over the v0.7.0 baseline. No new features.
+
+The minor bump is not cosmetic: `transition` no longer writes `next_action` and
+`validate` now requires it, so a state or a script that worked against v0.7.0
+can fail here. In pre-1.0 that is what a minor bump is for.
 
 ### Fixed
 
