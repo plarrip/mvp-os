@@ -169,15 +169,36 @@ def test_validate_reports_concrete_errors(project):
 # These are expected to fail today. When a fix lands, strict xfail turns the
 # unexpected pass into a failure, forcing the marker to be removed.
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="status raises AttributeError instead of reporting a corrupt state",
-)
-def test_status_degrades_gracefully_on_a_corrupt_state(project, run_cli):
+@pytest.mark.parametrize("command", ["status", "gate", "next", "review"])
+def test_read_commands_refuse_an_unreadable_state_without_crashing(
+    project, run_cli, command
+):
+    """An agent runs these constantly; a Python traceback is not a report."""
     advance(project, project="not a mapping")
-    result = run_cli("status")
+    result = run_cli(command)
     assert "Traceback" not in result.stderr
     assert result.returncode == 1
+    assert "UNREADABLE STATE" in result.stdout
+    assert "project must be a mapping" in result.stdout
+
+
+def test_read_commands_still_work_on_an_incomplete_state(project, run_cli):
+    """A cleared next_action is a normal working state, not an unreadable one.
+
+    Shape and completeness are different failures: one means the file cannot
+    be parsed, the other means the agent has not finished thinking yet.
+    """
+    advance(
+        project,
+        project={"description": "Lean MVP operating system"},
+        problem={"user": "Solo technical founder"},
+    )
+    run_cli("transition", "G1")
+    result = run_cli("status")
+    assert result.returncode == 0
+    assert "G1" in result.stdout
+    assert "(not defined)" in result.stdout
+    assert run_cli("validate").returncode == 1
 
 
 def test_transition_clears_next_action_instead_of_inventing_one(project, run_cli):

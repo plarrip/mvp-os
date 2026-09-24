@@ -4,7 +4,7 @@ from pathlib import Path
 from importlib.resources import files
 from .state import ProjectState,detect_spec_kit
 from .lifecycle import GATES,gate_name,is_valid_gate,transition_allowed,gate_requirements_satisfied
-from .validation import validate_state
+from .validation import validate_state,validate_shape
 
 def root(): return Path.cwd()
 
@@ -72,6 +72,12 @@ def main():
   print(f"ACCEPTED\n{current} → {target} — {gate_name(target)}")
   print("next_action cleared. Set it in .mvp-os/state.yml; validate will fail until you do.")
   return 0
+ shape=validate_shape(d)
+ if shape:
+  print("UNREADABLE STATE — .mvp-os/state.yml cannot be parsed:")
+  [print("- "+x) for x in shape]
+  print("Fix the file, then run `mvp-os validate`.")
+  return 1
  l=d.get("lifecycle",{}); g=l.get("current_gate","G0")
  if a.command=="status": print(f"Project: {d.get('project',{}).get('name') or '(unnamed)'}\nStatus: {l.get('status')}\nGate: {g} — {gate_name(g)}\nSDD: {d.get('sdd',{}).get('provider')}\nNext: {l.get('next_action') or '(not defined)'}")
  elif a.command=="gate": print(f"{g} — {gate_name(g)}")
