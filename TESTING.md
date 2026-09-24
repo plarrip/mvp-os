@@ -1,13 +1,59 @@
-# MVP-OS v0.7.0 testing
+# Testing MVP-OS
 
-1. Clean repo, non-editable install:
-`python -m pip install /path/to/mvp-os-v0.7.0`
-then `mvp-os init`. Verify `.mvp-os/methodology.md` exists.
+## Automated suite
 
-2. Open a fresh agent session without mentioning MVP-OS. Start a project normally.
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -e ".[dev]"
+.venv/bin/python -m pytest
+```
 
-3. Run `mvp-os validate`. Corrupt schema_version, project type, a hypothesis entry, or sdd.status; validate must return INVALID.
+Unit and CLI tests run straight from `src/` and need no install. Tests marked
+`integration` build and install a real distribution into a throwaway venv:
 
-4. From G0 run `mvp-os transition G7`: must be REJECTED. Build valid state and transition through G1/G2/G3. A permitted backward transition such as G3→G2 is allowed.
+```bash
+pytest -m integration        # only those
+pytest -m "not integration"  # skip them (fast, fully offline)
+```
 
-5. In a separate repo, initialize Spec Kit before `mvp-os init`; verify `sdd.provider: spec-kit`.
+The integration fixture stages a pristine copy of the repository before
+building. This is deliberate: setuptools reuses `build/lib` and pip reuses
+cached wheels, so building in place can produce a passing test over a broken
+artifact — and only on a developer machine, since CI starts clean.
+
+### Coverage of the project brief
+
+| Brief | Covered by |
+|---|---|
+| A — real installation | `test_packaging.py::test_A_init_on_a_clean_repo` |
+| B — state corruption | `test_validation.py` |
+| C — gate enforcement | `test_transitions.py::test_C_arbitrary_jump_is_refused`, `test_cli.py::test_C_refuses_to_skip_gates` |
+| D — normal progression | `test_cli.py::test_D_and_E_full_journey` |
+| E — backward transition | same test, second half |
+| G — persistence | `test_cli.py::test_G_agent_edits_to_state_survive_and_validate` |
+| F — agent discovery | manual, below |
+| H — Spec Kit | not implemented yet |
+
+Four tests are `xfail(strict=True)`: they describe known defects as executable
+specifications. When one is fixed, the unexpected pass fails the suite, forcing
+the marker to be removed rather than quietly forgotten.
+
+## Test F — agent auto-discovery (manual)
+
+Automation cannot cover this one: it tests whether a fresh agent session picks
+MVP-OS up on its own.
+
+1. Initialize MVP-OS in a clean repository.
+2. Open a new agent session.
+3. Do **not** mention MVP-OS.
+4. Say: *"I want to start a new project. I have an idea for an application."*
+
+Expected: the agent reads `.mvp-os/methodology.md` and `.mvp-os/state.yml` on
+its own, reports that it is at G0, asks for user/problem/observation, and does
+not write production code.
+
+## Test H — Spec Kit (not yet applicable)
+
+Deferred until standalone is solid. The Spec Kit bundle was removed in v0.7.0
+and has not been reinstated; `detect_spec_kit()` still sets `sdd.provider` but
+there is nothing to install.

@@ -23,3 +23,13 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 mvp_os = ["resources/*"]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "tests"]
+testpaths = ["tests"]
+markers = [
+    "integration: builds and installs a real distribution (slower, needs network)",
+]
