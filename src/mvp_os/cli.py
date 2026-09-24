@@ -20,8 +20,9 @@ This project uses MVP-OS as its default product-development operating system.
 5. Persist durable product state in `.mvp-os/state.yml`.
 6. After meaningful state changes, run `mvp-os validate`.
 7. To change gates, use `mvp-os transition <GATE>`; do not edit `lifecycle.current_gate` directly.
-8. If evidence is insufficient, state `INSUFFICIENT EVIDENCE`, identify what is missing, and stop.
-9. If an SDD provider is present, use it for technical specification rather than duplicating its primitives.
+8. A transition clears `lifecycle.next_action`. Write the new one immediately: validation fails, and further transitions are refused, until it is set.
+9. If evidence is insufficient, state `INSUFFICIENT EVIDENCE`, identify what is missing, and stop.
+10. If an SDD provider is present, use it for technical specification rather than duplicating its primitives.
 
 The agent owns product reasoning and content. MVP-OS owns deterministic state validation and gate transitions.
 """
