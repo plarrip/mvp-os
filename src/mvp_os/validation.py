@@ -136,13 +136,16 @@ def _reference_errors(data: dict[str, Any]) -> list[str]:
         for item in (data.get("hypotheses") or [])
         if isinstance(item, dict)
     }
-    for i, experiment in enumerate(data.get("experiments") or []):
-        if not isinstance(experiment, dict):
-            continue
-        reference = experiment.get("hypothesis_id")
-        if reference and reference not in hypothesis_ids:
-            errors.append(
-                f"experiments[{i}].hypothesis_id references unknown hypothesis "
-                f"{reference!r}"
-            )
+    # Any entry may link itself to a hypothesis; evidence that claims to support
+    # H3 when no H3 exists is worse than evidence with no link at all.
+    for field in ("experiments", "evidence", "learnings", "decisions"):
+        for i, item in enumerate(data.get(field) or []):
+            if not isinstance(item, dict):
+                continue
+            reference = item.get("hypothesis_id")
+            if reference and reference not in hypothesis_ids:
+                errors.append(
+                    f"{field}[{i}].hypothesis_id references unknown hypothesis "
+                    f"{reference!r}"
+                )
     return errors

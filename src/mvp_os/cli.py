@@ -13,6 +13,7 @@ from importlib.resources import files
 from pathlib import Path
 
 from .lifecycle import (
+    gate_index,
     gate_name,
     gate_requirements_satisfied,
     is_valid_gate,
@@ -38,7 +39,7 @@ This project uses MVP-OS as its default product-development operating system.
 7. To change gates, use `mvp-os transition <GATE>`; do not edit `lifecycle.current_gate` directly.
 8. A transition clears `lifecycle.next_action`. Write the new one immediately: validation fails, and further transitions are refused, until it is set.
 9. If evidence is insufficient, state `INSUFFICIENT EVIDENCE`, identify what is missing, and stop.
-10. If an SDD provider is present, use it for technical specification rather than duplicating its primitives.
+10. At G5, run `mvp-os handoff` and give its output to the SDD provider. Never duplicate that provider's primitives.
 
 The agent owns product reasoning and content. MVP-OS owns deterministic state validation and gate transitions.
 """
@@ -282,6 +283,119 @@ def run_remove(project_root: Path, confirmed: bool) -> int:
     return 0
 
 
+SUMMARY_KEYS = ("statement", "observation", "summary", "description", "note", "text")
+
+
+def _summary(item: dict) -> str:
+    """Best available one-line description of a state entry.
+
+    Only `id` is mandated by the schema; which field carries the meaning is the
+    agent's choice, so read the likely ones and fall back to anything scalar
+    rather than printing nothing.
+    """
+    for key in SUMMARY_KEYS:
+        value = item.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    for key, value in item.items():
+        if key not in {"id", "hypothesis_id"} and isinstance(value, (str, int, float)):
+            return str(value)
+    return "(no description)"
+
+
+def run_handoff(data: dict) -> int:
+    """Emit the validated product context for an SDD provider to specify.
+
+    This is the whole of the SDD boundary: MVP-OS answers what to build and why,
+    and stops. It does not write specs, and it stays provider-agnostic -- the
+    block is the same whoever picks it up; only the closing line differs.
+    """
+    lifecycle = data.get("lifecycle", {})
+    gate = lifecycle.get("current_gate", "G0")
+    problem = data.get("problem", {})
+    hypotheses = [h for h in data.get("hypotheses", []) if isinstance(h, dict)]
+    mvp = data.get("mvp", {})
+    scope = mvp.get("scope") or []
+
+    blockers = []
+    if gate_index(gate) < gate_index("G5"):
+        blockers.append(
+            f"the project is at {gate}; a specification written before product "
+            "definition is what MVP-OS exists to prevent"
+        )
+    if not problem.get("user"):
+        blockers.append("problem.user is required")
+    if not problem.get("problem"):
+        blockers.append("problem.problem is required")
+    if not hypotheses:
+        blockers.append("at least one hypothesis is required")
+    if not scope:
+        blockers.append("mvp.scope must be defined")
+    if blockers:
+        print("REFUSED")
+        for blocker in blockers:
+            print(f"- {blocker}")
+        return 1
+
+    supporting: dict[str, list[dict]] = {}
+    for item in data.get("evidence", []):
+        if isinstance(item, dict) and item.get("hypothesis_id"):
+            supporting.setdefault(item["hypothesis_id"], []).append(item)
+
+    validated = [h for h in hypotheses if supporting.get(h.get("id"))]
+    open_risks = [h for h in hypotheses if not supporting.get(h.get("id"))]
+    provider = data.get("sdd", {}).get("provider", "none")
+
+    print(f"MVP-OS handoff — {gate} · SDD provider: {provider}\n")
+    print("TARGET USER\n  " + problem["user"])
+    print("\nPROBLEM\n  " + problem["problem"])
+
+    if validated:
+        print("\nVALIDATED HYPOTHESES")
+        for h in validated:
+            print(f"  {h.get('id')}  {_summary(h)}")
+            if h.get("success_metric"):
+                print(f"      metric: {h['success_metric']}")
+            for item in supporting[h["id"]]:
+                print(f"      {item.get('id')}  {_summary(item)}")
+
+    if open_risks:
+        print("\nUNVALIDATED ASSUMPTIONS — carry into the spec as risks")
+        for h in open_risks:
+            risk = f" (risk: {h['risk']})" if h.get("risk") else ""
+            print(f"  {h.get('id')}  {_summary(h)}{risk}")
+
+    print("\nMVP SCOPE")
+    for entry in scope:
+        print(f"  - {entry}")
+
+    out_of_scope = mvp.get("out_of_scope") or []
+    if out_of_scope:
+        print("\nOUT OF SCOPE — do not specify")
+        for entry in out_of_scope:
+            print(f"  - {entry}")
+
+    for decision in data.get("decisions", []):
+        if isinstance(decision, dict):
+            print(f"\nSTANDING DECISION {decision.get('id')}\n  {_summary(decision)}")
+
+    if not validated:
+        print(
+            "\nNOTE: no hypothesis is backed by evidence. Everything below the "
+            "problem statement is still an assumption."
+        )
+
+    print("\n" + "-" * 68)
+    if provider == "spec-kit":
+        print("Hand to Spec Kit:  /speckit-specify  (paste everything above this line)")
+    else:
+        print(
+            "No SDD provider is configured. Hand the block above to whatever\n"
+            "specification and implementation workflow you use."
+        )
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="mvp-os")
     subcommands = parser.add_subparsers(dest="command", required=True)
@@ -296,7 +410,7 @@ def build_parser() -> argparse.ArgumentParser:
     remove = subcommands.add_parser("remove")
     remove.add_argument("--yes", action="store_true")
 
-    for command in ("status", "gate", "next", "review", "validate"):
+    for command in ("status", "gate", "next", "review", "validate", "handoff"):
         subcommands.add_parser(command)
     return parser
 
@@ -459,6 +573,11 @@ def main() -> int:
 
     if args.command == "transition":
         return run_transition(state, data, args.target)
+
+    if args.command == "handoff":
+        if validate_shape(data):
+            return run_read(args.command, data)
+        return run_handoff(data)
 
     return run_read(args.command, data)
 

@@ -49,8 +49,23 @@ are no parallel states.
 
 ## Spec Kit integration
 
-Not implemented in this repository. `detect_spec_kit()` sets `sdd.provider`, but
-the extension, commands and workflows that existed in v0.6.0 were removed in
-v0.7.0 and nothing installs them. When reinstated, the integration must use
-native Spec Kit primitives and stay optional: the bundle is distribution and
-composition, not the MVP-OS runtime.
+`detect_spec_kit()` records the provider; `mvp-os handoff` emits the product
+context. That is the entire integration, and it is deliberately one-directional:
+MVP-OS installs nothing into Spec Kit and imports nothing from it.
+
+The alternative was rebuilding the v0.6.0 bundle, which shipped a Spec Kit
+extension with five `speckit.mvp.*` commands. Two findings against it, both from
+testing against Spec Kit 1.0.11 rather than reading its docs:
+
+- A bundle cannot carry its own extension. `_locate_bundled_extension()` looks
+  only in Spec Kit's core pack or source checkout, so installing a bundle
+  offline fails even when the built `.zip` embeds the extension. Components must
+  come from a catalog. The v0.6.0 manifest passes `specify bundle validate` and
+  still cannot be installed.
+- The commands used the wrong namespace. Spec Kit requires the extension's own
+  (`mvp-os.hypothesis`, surfaced as `speckit.mvp-os.hypothesis`); v0.6.0 used
+  `speckit.mvp.hypothesis` and is rejected at install time.
+
+Both are fixable. The reason not to fix them is that those five commands restate
+guidance the methodology already gives the agent, in a second place, coupled to
+one provider's extension format.

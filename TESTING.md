@@ -32,7 +32,7 @@ artifact — and only on a developer machine, since CI starts clean.
 | E — backward transition | same test, second half |
 | G — persistence | `test_cli.py::test_G_agent_edits_to_state_survive_and_validate` |
 | F — agent discovery | manual, below |
-| H — Spec Kit | not implemented yet |
+| H — Spec Kit | `test_handoff.py`; the integration is the handoff and nothing else |
 
 Four tests are `xfail(strict=True)`: they describe known defects as executable
 specifications. When one is fixed, the unexpected pass fails the suite, forcing

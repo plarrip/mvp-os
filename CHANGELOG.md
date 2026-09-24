@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.11.0
+
+### Added
+
+- `mvp-os handoff`: emits the validated product context for an SDD provider to
+  specify. It carries what a specification cannot reconstruct -- which
+  hypotheses evidence supports, which are still assumptions, and what was
+  explicitly ruled out -- and refuses before G5.
+
+  The block is provider-agnostic; only the closing line names Spec Kit. MVP-OS
+  installs nothing into a provider.
+
+- `validate` now checks `hypothesis_id` on evidence, learnings and decisions,
+  not only on experiments. Evidence claiming to support a hypothesis that does
+  not exist is worse than evidence with no link.
+
+### Note on the Spec Kit bundle
+
+The v0.6.0 bundle was not reinstated. Tested against Spec Kit 1.0.11: a bundle
+cannot carry its own extension (`_locate_bundled_extension` reads only Spec
+Kit's core pack or checkout), so it cannot be installed offline even when the
+built artifact embeds it; and its commands used the wrong namespace. Both are
+fixable, but the five commands restate guidance the methodology already gives,
+coupled to one provider's extension format. See ARCHITECTURE.md.
+
 ## 0.10.0
 
 ### Fixed

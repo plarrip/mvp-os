@@ -63,10 +63,12 @@ def test_readme_documents_every_command():
         )
 
 
-def test_readme_does_not_claim_a_working_spec_kit_integration():
-    """It is detected, not integrated. Saying otherwise is how v0.7.0 misled."""
+def test_readme_is_precise_about_what_the_integration_does():
+    """v0.7.0's manifests claimed five commands that had been deleted. The
+    README may describe the handoff, and must not imply more than that."""
     lowered = README.lower()
-    assert "not finished" in lowered or "not implemented" in lowered
+    assert "mvp-os handoff" in lowered
+    assert "installs nothing" in lowered
 
 
 def test_the_agent_is_not_told_how_to_uninstall():

@@ -32,6 +32,15 @@ TRANSITIONS = {
 }
 
 
+GATE_ORDER = tuple(GATES)
+
+
+def gate_index(gate: str) -> int:
+    """Position in the lifecycle. The graph allows loops, but "have we reached
+    product definition yet" is still a linear question."""
+    return GATE_ORDER.index(gate) if gate in GATES else -1
+
+
 def gate_name(gate: str) -> str:
     return GATES.get(gate, "Unknown")
 

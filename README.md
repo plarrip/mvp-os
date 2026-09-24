@@ -64,6 +64,7 @@ mvp-os next                                      # next action only
 mvp-os review                                    # gate plus evidence counts
 mvp-os validate                                  # deterministic checkpoint
 mvp-os transition <GATE>                         # the only way to change gate
+mvp-os handoff                                   # emit the product context for an SDD provider
 mvp-os remove [--yes]                            # undo init; without --yes, only plans
 ```
 
@@ -103,16 +104,58 @@ are no longer met.
 
 ## SDD integration
 
-MVP-OS must work with no SDD framework at all, and alongside one. Spec Kit is
-the reference integration, and it is **not finished**: `init` detects Spec Kit
-and records it in `sdd.provider`, but the bundle that would install its
-commands was removed in v0.7.0 and has not been reinstated.
-
 ```text
 MVP-OS            "What should we build and why?"
-   ↓
+   ↓  mvp-os handoff
 SDD provider      "How should we specify and implement it?"
 ```
+
+MVP-OS works with no SDD framework at all, and alongside one. The seam between
+them is a single command:
+
+```text
+$ mvp-os handoff
+MVP-OS handoff — G5 · SDD provider: spec-kit
+
+TARGET USER
+  Solo technical founder
+
+PROBLEM
+  Jumps from idea to code without validating
+
+VALIDATED HYPOTHESES
+  H1  A solo founder would pay for process structure
+      metric: >=8 of 20 name it unprompted
+      EV1  9 of 20 named it unprompted
+
+UNVALIDATED ASSUMPTIONS — carry into the spec as risks
+  H2  Teams would adopt it alongside an existing process (risk: medium)
+
+MVP SCOPE
+  - single-hypothesis tracker
+
+OUT OF SCOPE — do not specify
+  - multi-user
+
+--------------------------------------------------------------------
+Hand to Spec Kit:  /speckit-specify  (paste everything above this line)
+```
+
+It refuses before G5: a specification written before the product is defined is
+the thing MVP-OS exists to prevent.
+
+Two properties are deliberate. The block is identical whoever picks it up --
+only the closing line names a provider -- so the core never becomes a wrapper
+around one SDD framework. And MVP-OS **installs nothing** into Spec Kit: no
+extension, no commands, no templates. Spec Kit owns specification and
+implementation; duplicating its primitives inside MVP-OS would dissolve the
+boundary the handoff exists to draw.
+
+What the handoff carries is what a spec cannot reconstruct on its own: which
+hypotheses evidence actually supports, which are still assumptions, and what was
+explicitly ruled out. Scope that was decided against is the most expensive thing
+to lose in a handoff, because nothing downstream records that it was ever
+considered.
 
 ## Removing it
 
