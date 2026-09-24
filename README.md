@@ -44,6 +44,7 @@ mvp-os next                                      # next action only
 mvp-os review                                    # gate plus evidence counts
 mvp-os validate                                  # deterministic checkpoint
 mvp-os transition <GATE>                         # the only way to change gate
+mvp-os remove [--yes]                            # undo init; without --yes, only plans
 ```
 
 The CLI deliberately has no write commands for hypotheses, evidence or
@@ -92,6 +93,22 @@ MVP-OS            "What should we build and why?"
    ↓
 SDD provider      "How should we specify and implement it?"
 ```
+
+## Removing it
+
+```bash
+mvp-os remove          # prints exactly what it would touch, changes nothing
+mvp-os remove --yes    # applies it
+pip uninstall mvp-os
+```
+
+It deletes what it created and cuts out what it added, leaving everything else
+alone: your own rules in `AGENTS.md`, your notes in `CLAUDE.md`, and your code.
+A `.gitignore` it created is deleted; one you already had keeps its `.venv/`
+line, because that line is indistinguishable from one you would have written.
+
+Files already committed stay in git history. If that matters, do not commit
+`.mvp-os/` in the first place -- it is your reasoning process, not your product.
 
 ## Development
 

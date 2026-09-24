@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.9.0
+
+### Added
+
+- `mvp-os remove`, which undoes `init`. Without `--yes` it only prints the plan;
+  it deletes `.mvp-os/state.yml`, so an accidental invocation would destroy a
+  project's hypotheses, evidence and decisions.
+
+  It removes what it created and cuts out what it added, and leaves alone
+  anything it cannot prove it authored: a `.gitignore` the project already had
+  keeps its `.venv/` line, because that line is indistinguishable from one the
+  project would have written. Files already committed remain in git history.
+
+  Deliberately absent from AGENTS.md: uninstalling is a decision for the person,
+  not a step an agent should ever consider taking.
+
 ## 0.8.0
 
 Hardening pass over the v0.7.0 baseline. No new features.

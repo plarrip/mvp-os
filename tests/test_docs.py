@@ -14,7 +14,9 @@ from mvp_os.lifecycle import GATES
 
 METHODOLOGY = files("mvp_os.resources").joinpath("methodology.md").read_text()
 README = (REPO_ROOT / "README.md").read_text()
-COMMANDS = ("init", "status", "gate", "next", "review", "validate", "transition")
+COMMANDS = (
+    "init", "status", "gate", "next", "review", "validate", "transition", "remove",
+)
 
 
 def test_methodology_documents_every_gate():
@@ -57,3 +59,14 @@ def test_readme_does_not_claim_a_working_spec_kit_integration():
     """It is detected, not integrated. Saying otherwise is how v0.7.0 misled."""
     lowered = README.lower()
     assert "not finished" in lowered or "not implemented" in lowered
+
+
+def test_the_agent_is_not_told_how_to_uninstall():
+    """`remove` is deliberately absent from AGENTS.md.
+
+    Those instructions are the agent's standing orders, and deleting the
+    project's hypotheses, evidence and decisions is never a step towards
+    validated learning. Removal is a decision for the person, taken at a
+    terminal, with --yes typed out.
+    """
+    assert "remove" not in AGENT_INSTRUCTIONS

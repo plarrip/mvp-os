@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import shutil
 from importlib.resources import files
 from pathlib import Path
 
@@ -162,6 +163,125 @@ def install_resources(project_root: Path) -> list[str]:
     return notices
 
 
+def plan_removal(project_root: Path) -> list[tuple[str, str]]:
+    """Work out exactly how to undo `init`, without touching anything.
+
+    Everything MVP-OS writes is either a file it owns outright or a delimited
+    region inside a file the project owns. Removal has to respect that line: a
+    file it created is deleted, a region it added is cut out, and anything it
+    cannot prove it authored is left alone and reported.
+    """
+    steps: list[tuple[str, str]] = []
+
+    if (project_root / ".mvp-os").exists():
+        steps.append((".mvp-os/", "delete directory (state, methodology, digest)"))
+
+    agents = project_root / "AGENTS.md"
+    if agents.exists():
+        text = agents.read_text(encoding="utf-8")
+        start, end = text.find(MARKER_START), text.find(MARKER_END)
+        if start != -1 and end != -1:
+            remaining = text[:start] + text[end + len(MARKER_END):]
+            steps.append((
+                "AGENTS.md",
+                "delete file (contains nothing else)" if not remaining.strip()
+                else "remove the MVP-OS block, keep the rest",
+            ))
+        elif LEGACY_HEADING in text:
+            remaining = text[: text.index(LEGACY_HEADING)]
+            steps.append((
+                "AGENTS.md",
+                "delete file (contains nothing else)" if not remaining.strip()
+                else "remove the unmarked MVP-OS block to the end of the file",
+            ))
+
+    claude = project_root / "CLAUDE.md"
+    if claude.exists():
+        lines = claude.read_text(encoding="utf-8").splitlines()
+        if any(line.strip() == "@AGENTS.md" for line in lines):
+            remaining = [line for line in lines if line.strip() != "@AGENTS.md"]
+            steps.append((
+                "CLAUDE.md",
+                "delete file (contains nothing else)" if not "\n".join(remaining).strip()
+                else "remove the @AGENTS.md line, keep the rest",
+            ))
+
+    gitignore = project_root / ".gitignore"
+    if gitignore.exists():
+        text = gitignore.read_text(encoding="utf-8")
+        if text == _packaged("gitignore.template"):
+            steps.append((".gitignore", "delete file (created by MVP-OS, unmodified)"))
+        elif ".venv/" in text:
+            # Indistinguishable from a line the project would have written anyway,
+            # and removing it would un-ignore a virtualenv. Not ours to take back.
+            steps.append((".gitignore", "KEEP: '.venv/' is not identifiable as ours"))
+
+    return steps
+
+
+def apply_removal(project_root: Path) -> None:
+    directory = project_root / ".mvp-os"
+    if directory.exists():
+        shutil.rmtree(directory)
+
+    agents = project_root / "AGENTS.md"
+    if agents.exists():
+        text = agents.read_text(encoding="utf-8")
+        start, end = text.find(MARKER_START), text.find(MARKER_END)
+        if start != -1 and end != -1:
+            text = text[:start] + text[end + len(MARKER_END):]
+        elif LEGACY_HEADING in text:
+            text = text[: text.index(LEGACY_HEADING)]
+        else:
+            text = None
+        if text is not None:
+            _write_or_delete(agents, text)
+
+    claude = project_root / "CLAUDE.md"
+    if claude.exists():
+        lines = claude.read_text(encoding="utf-8").splitlines()
+        if any(line.strip() == "@AGENTS.md" for line in lines):
+            kept = [line for line in lines if line.strip() != "@AGENTS.md"]
+            _write_or_delete(claude, "\n".join(kept))
+
+    gitignore = project_root / ".gitignore"
+    if gitignore.exists() and gitignore.read_text(encoding="utf-8") == _packaged(
+        "gitignore.template"
+    ):
+        gitignore.unlink()
+
+
+def _write_or_delete(path: Path, text: str) -> None:
+    """Write the remainder back, or delete the file if nothing of it is left."""
+    if text.strip():
+        path.write_text(text.rstrip() + "\n", encoding="utf-8")
+    else:
+        path.unlink()
+
+
+def run_remove(project_root: Path, confirmed: bool) -> int:
+    steps = plan_removal(project_root)
+    if not steps:
+        print("Nothing to remove: no MVP-OS files found here.")
+        return 0
+
+    for target, action in steps:
+        print(f"- {target}: {action}")
+
+    if not confirmed:
+        print(
+            "\nNothing was removed. Re-run with --yes to apply.\n"
+            "This deletes .mvp-os/state.yml, which holds the project's hypotheses, "
+            "evidence and decisions."
+        )
+        return 0
+
+    apply_removal(project_root)
+    print("\nMVP-OS removed. Your project's own files and code are untouched.")
+    print("Run `pip uninstall mvp-os` to remove the CLI itself.")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="mvp-os")
     subcommands = parser.add_subparsers(dest="command", required=True)
@@ -172,6 +292,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     transition = subcommands.add_parser("transition")
     transition.add_argument("target")
+
+    remove = subcommands.add_parser("remove")
+    remove.add_argument("--yes", action="store_true")
 
     for command in ("status", "gate", "next", "review", "validate"):
         subcommands.add_parser(command)
@@ -293,6 +416,9 @@ def main() -> int:
 
     if args.command == "init":
         return run_init(state, args)
+
+    if args.command == "remove":
+        return run_remove(root(), args.yes)
 
     if not state.exists():
         print("MVP-OS is not initialized. Run: mvp-os init")
