@@ -144,6 +144,28 @@ Hand to Spec Kit:  /speckit-specify  (paste everything above this line)
 It refuses before G5: a specification written before the product is defined is
 the thing MVP-OS exists to prevent.
 
+### Order matters
+
+Initialize the SDD provider first:
+
+```bash
+specify init --here          # then
+mvp-os init
+```
+
+Detection happens during `mvp-os init` and nowhere else. If Spec Kit arrives
+afterwards, `sdd.provider` stays `none` until you re-run `mvp-os init`, which
+syncs it. Check with `mvp-os status`.
+
+### Only Spec Kit, so far
+
+Spec Kit is the only provider this has been designed against and tested with.
+The handoff itself is provider-agnostic by construction -- the block is the same
+whoever reads it -- so nothing structural blocks OpenSpec, Superpowers or
+another SDD framework. But detection, and the closing line that names a
+provider, know about Spec Kit only. If there is demand for another, the
+integration is small work; it is simply not done or verified today.
+
 Two properties are deliberate. The block is identical whoever picks it up --
 only the closing line names a provider -- so the core never becomes a wrapper
 around one SDD framework. And MVP-OS **installs nothing** into Spec Kit: no
