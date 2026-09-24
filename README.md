@@ -16,10 +16,30 @@ lifecycle transitions.
 
 ## Install
 
+MVP-OS is a tool you use across projects, not a dependency of any one of them.
+Install it once, globally, with `uv tool` or `pipx`:
+
 ```bash
-pip install /path/to/mvp-os
+uv tool install "git+https://github.com/plarrip/mvp-os@v0.9.0"
+# or: pipx install "git+https://github.com/plarrip/mvp-os@v0.9.0"
+
 cd your-project
 mvp-os init
+```
+
+Both keep it in its own isolated environment while putting `mvp-os` on your
+PATH. It never enters your project's dependencies -- no entry in your
+`pyproject.toml`, `requirements.txt` or `package.json`.
+
+Installing into a project's virtualenv also works, but then `mvp-os` only
+exists while that virtualenv is active -- and `AGENTS.md` tells the agent to run
+`mvp-os validate`, which would fail in any session that did not activate it.
+
+To work on MVP-OS itself, install it from a checkout and skip the reinstall
+step after every edit:
+
+```bash
+uv tool install --editable /path/to/mvp-os
 ```
 
 `init` writes `AGENTS.md`, `CLAUDE.md` (`@AGENTS.md`), `.mvp-os/state.yml` and
