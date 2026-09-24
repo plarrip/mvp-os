@@ -8,15 +8,10 @@ It exists to replace `idea → code → product` with
 
 The agent owns product reasoning and the contents of `.mvp-os/state.yml`:
 problem, hypotheses, experiments, evidence, learnings, decisions, MVP scope.
-MVP-OS owns enforcement and writes no product content.
+MVP-OS owns enforcement: it validates state and accepts or refuses gate
+transitions, and writes no product content of its own.
 
-- Edit state content directly, then run `mvp-os validate`.
-- Never edit `lifecycle.current_gate`. Gate changes go through
-  `mvp-os transition <GATE>`, which refuses invalid moves.
-- **A transition clears `lifecycle.next_action`.** Write the new one before
-  anything else: `validate` fails while an active project has none, and the
-  next transition is refused until it is set. Stating where you are going is
-  the price of moving.
+How to operate that division day to day is in the agent instructions, not here.
 
 ## Lifecycle
 
@@ -27,6 +22,10 @@ G7 MVP Validation → G8 Learning/Decision.
 The lifecycle is a graph, not a ladder. Evidence can move a project forward,
 backward, pause it or stop it. G3 → G2 is a normal move when a hypothesis is
 invalidated. G0 → G7 is never valid.
+
+A paused or stopped project cannot change gates. Something was decided about
+it; resuming is that decision being reversed, and has to be recorded as one by
+setting `lifecycle.status` back to `active`.
 
 ## Gate requirements
 

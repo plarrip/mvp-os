@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.10.0
+
+### Fixed
+
+- Every command that reads state raised a PyYAML stack trace when `state.yml`
+  was not valid YAML. The agent writes that file by hand, so a syntax error is
+  the likeliest failure in daily use, and six of eight commands answered it with
+  a traceback. They now report the problem and the line.
+- A `paused`, `stopped` or `completed` project could still change gates.
+  `lifecycle.status` was validated but never enforced, which made it
+  decoration. Transitions now require an active project.
+
+### Changed
+
+- The methodology no longer restates the operating instructions. Both files are
+  read every session, so the overlap cost context on every run and left two
+  places to update per rule.
+
 ## 0.9.0
 
 ### Added

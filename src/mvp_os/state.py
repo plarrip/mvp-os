@@ -12,6 +12,16 @@ from typing import Any
 
 import yaml
 
+class StateError(RuntimeError):
+    """The state file exists but cannot be read.
+
+    Distinct from "the state is wrong": the file may be unparseable long before
+    validation can have an opinion about it. The agent writes this YAML by hand,
+    so a syntax error is the likeliest failure in daily use, and it must read as
+    a report rather than a PyYAML stack trace.
+    """
+
+
 STATE_DIR = ".mvp-os"
 STATE_FILE = "state.yml"
 
@@ -52,7 +62,17 @@ class ProjectState:
         return self.path.exists()
 
     def load(self) -> dict[str, Any]:
-        return yaml.safe_load(self.path.read_text(encoding="utf-8")) or {}
+        try:
+            text = self.path.read_text(encoding="utf-8")
+        except OSError as exc:
+            raise StateError(f"cannot read {STATE_DIR}/{STATE_FILE}: {exc.strerror}") from exc
+        try:
+            data = yaml.safe_load(text)
+        except yaml.YAMLError as exc:
+            raise StateError(
+                f"{STATE_DIR}/{STATE_FILE} is not valid YAML: {_yaml_problem(exc)}"
+            ) from exc
+        return data or {}
 
     def save(self, data: dict[str, Any]) -> None:
         self.directory.mkdir(parents=True, exist_ok=True)
@@ -81,3 +101,12 @@ class ProjectState:
 def detect_spec_kit(root: Path) -> bool:
     """Whether Spec Kit is present. Detection only -- the core never requires it."""
     return (root / ".specify").exists() or (root / "specify.yml").exists()
+
+
+def _yaml_problem(exc: yaml.YAMLError) -> str:
+    """The one useful line out of a PyYAML exception."""
+    problem = getattr(exc, "problem", None)
+    mark = getattr(exc, "problem_mark", None)
+    if problem and mark is not None:
+        return f"{problem} (line {mark.line + 1}, column {mark.column + 1})"
+    return problem or str(exc).splitlines()[0]

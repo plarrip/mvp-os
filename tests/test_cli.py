@@ -370,3 +370,35 @@ def test_init_name_on_an_existing_project_is_applied(project, run_cli):
 def test_init_without_arguments_reports_no_changes(project, run_cli):
     result = run_cli("init")
     assert "Updated" not in result.stdout
+
+
+@pytest.mark.parametrize("status", ["stopped", "completed", "paused"])
+def test_a_project_that_is_not_active_cannot_change_gates(project, run_cli, status):
+    """lifecycle.status was validated but never enforced -- decoration.
+
+    A paused or stopped project is not idle: something was decided about it.
+    Letting it drift through gates makes the status field a lie.
+    """
+    advance(
+        project,
+        project={"description": "Lean MVP operating system"},
+        problem={"user": "Solo technical founder"},
+        lifecycle={"status": status},
+    )
+    result = run_cli("transition", "G1")
+    assert result.returncode == 1
+    assert f"the project is {status!r}" in result.stdout
+    assert read_state(project)["lifecycle"]["current_gate"] == "G0"
+
+
+def test_reactivating_a_stopped_project_lets_it_move_again(project, run_cli):
+    """Resuming is an explicit decision the agent records, not a CLI flag."""
+    advance(
+        project,
+        project={"description": "Lean MVP operating system"},
+        problem={"user": "Solo technical founder"},
+        lifecycle={"status": "stopped"},
+    )
+    assert run_cli("transition", "G1").returncode == 1
+    advance(project, lifecycle={"status": "active"})
+    assert "ACCEPTED" in run_cli("transition", "G1").stdout

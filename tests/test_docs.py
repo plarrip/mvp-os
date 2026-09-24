@@ -25,11 +25,19 @@ def test_methodology_documents_every_gate():
         assert name in METHODOLOGY, f"{gate} ({name}) has no name in the methodology"
 
 
-def test_methodology_documents_the_transition_contract():
-    """An agent that does not know these rules will fight the CLI."""
-    assert "mvp-os transition" in METHODOLOGY
-    assert "current_gate" in METHODOLOGY
-    assert "next_action" in METHODOLOGY
+def test_the_three_levels_do_not_restate_each_other():
+    """AGENTS.md carries the mechanics; the methodology carries the method.
+
+    Both are read every session, so duplication costs context on every run and
+    creates two places to update when a rule changes. The division is the
+    project's own: instructions say how to behave, the methodology says what
+    MVP-OS is and why.
+    """
+    for mechanic in ("mvp-os transition", "mvp-os validate", "current_gate"):
+        assert mechanic in AGENT_INSTRUCTIONS, f"{mechanic} must be an instruction"
+        assert mechanic not in METHODOLOGY, (
+            f"{mechanic} is an operating instruction, already in AGENTS.md"
+        )
 
 
 def test_methodology_states_the_lifecycle_is_not_linear():

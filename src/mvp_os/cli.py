@@ -18,7 +18,7 @@ from .lifecycle import (
     is_valid_gate,
     transition_allowed,
 )
-from .state import ProjectState, detect_spec_kit
+from .state import ProjectState, StateError, detect_spec_kit
 from .validation import validate_shape, validate_state
 
 MARKER_START = "<!-- MVP-OS instructions -->"
@@ -307,7 +307,12 @@ def run_init(state: ProjectState, args: argparse.Namespace) -> int:
 
     changed: list[str] = []
     if not created:
-        data = state.load()
+        try:
+            data = state.load()
+        except StateError as exc:
+            print(f"UNREADABLE STATE — {exc}")
+            print("Fix it, or run `mvp-os remove --yes` and start over.")
+            return 1
         if data.get("sdd", {}).get("provider") != provider:
             data.setdefault("sdd", {})["provider"] = provider
             changed.append(f"sdd.provider -> {provider}")
@@ -344,6 +349,17 @@ def run_transition(state: ProjectState, data: dict, target: str) -> int:
         print("REJECTED")
         for error in structural:
             print(f"- invalid state: {error}")
+        return 1
+
+    status = data.get("lifecycle", {}).get("status")
+    if status != "active":
+        # A project that was paused or stopped is not simply idle: something was
+        # decided about it. Resuming is that decision being reversed, which is
+        # the agent's call to make explicitly, not a side effect of moving on.
+        print(
+            f"REJECTED\n- the project is {status!r}; set lifecycle.status to "
+            "'active' to resume"
+        )
         return 1
 
     if not transition_allowed(current, target):
@@ -424,7 +440,12 @@ def main() -> int:
         print("MVP-OS is not initialized. Run: mvp-os init")
         return 1
 
-    data = state.load()
+    try:
+        data = state.load()
+    except StateError as exc:
+        print(f"UNREADABLE STATE — {exc}")
+        print("Fix the file, then run `mvp-os validate`.")
+        return 1
 
     if args.command == "validate":
         errors = validate_state(data)
