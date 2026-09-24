@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # pyproject declares requires-python = ">=3.9". This matrix is what
+        # makes that a fact rather than a claim.
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install
+        run: python -m pip install --upgrade pip && python -m pip install -e ".[dev]"
+
+      - name: Test
+        run: python -m pytest -v
+
+  install:
+    # The suite's integration tests already build and install a real
+    # distribution, but they do it from a staged copy inside a checkout that
+    # has been built in. This job proves a clean clone installs and runs.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install from a clean tree
+        run: python -m pip install .
+
+      - name: Initialize a project and check the discovery chain
+        run: |
+          mkdir -p /tmp/project && cd /tmp/project
+          mvp-os init
+          test -f .mvp-os/state.yml
+          test -f .mvp-os/methodology.md
+          test -f AGENTS.md
+          test -f CLAUDE.md
+          grep -q "@AGENTS.md" CLAUDE.md
+          mvp-os validate
+          if mvp-os transition G7; then echo "G0 -> G7 should have been refused"; exit 1; fi

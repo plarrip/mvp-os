@@ -37,6 +37,9 @@ Hardening pass over the v0.7.0 baseline. No new features.
   without which `build/lib` reuse and pip's wheel cache let the test pass over a
   broken artifact.
 - `validate_shape()`, separating type errors from completeness errors.
+- GitHub Actions CI: the suite across Python 3.9–3.14, plus a job that installs
+  from a clean checkout and drives `init`, `validate` and a refused transition.
+  `requires-python = ">=3.9"` was a claim nobody had ever executed.
 
 ## 0.7.0
 

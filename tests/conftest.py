@@ -102,7 +102,10 @@ def installed_env(tmp_path_factory):
     shutil.copytree(REPO_ROOT, staged, ignore=BUILD_NOISE)
 
     env_dir = base / "env"
-    venv.create(env_dir, with_pip=True)
+    try:
+        venv.create(env_dir, with_pip=True)
+    except Exception as exc:  # some managed interpreters ship a broken ensurepip
+        pytest.skip(f"cannot create a virtualenv with pip here: {exc}")
     bindir = env_dir / ("Scripts" if sys.platform == "win32" else "bin")
     result = subprocess.run(
         [str(bindir / "pip"), "install", "--quiet", "--no-cache-dir", str(staged)],
