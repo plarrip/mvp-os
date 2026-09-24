@@ -22,4 +22,4 @@ include-package-data = true
 where = ["src"]
 
 [tool.setuptools.package-data]
-mvp_os = ["resources/*.md"]
+mvp_os = ["resources/*"]
