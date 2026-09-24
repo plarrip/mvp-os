@@ -1,27 +1,30 @@
+"""Command surface.
+
+The CLI is deterministic infrastructure: it initializes a project, reports
+state, validates it, and accepts or refuses gate transitions. It never writes
+product content -- hypotheses, evidence and decisions belong to the agent.
+"""
 from __future__ import annotations
+
 import argparse
 import hashlib
-from pathlib import Path
 from importlib.resources import files
-from .state import ProjectState,detect_spec_kit
-from .lifecycle import GATES,gate_name,is_valid_gate,transition_allowed,gate_requirements_satisfied
-from .validation import validate_state,validate_shape
+from pathlib import Path
 
-def root(): return Path.cwd()
+from .lifecycle import (
+    gate_name,
+    gate_requirements_satisfied,
+    is_valid_gate,
+    transition_allowed,
+)
+from .state import ProjectState, detect_spec_kit
+from .validation import validate_shape, validate_state
 
-MARKER_START="<!-- MVP-OS instructions -->"
-MARKER_END="<!-- /MVP-OS instructions -->"
-LEGACY_HEADING="# MVP-OS project instructions"
+MARKER_START = "<!-- MVP-OS instructions -->"
+MARKER_END = "<!-- /MVP-OS instructions -->"
+LEGACY_HEADING = "# MVP-OS project instructions"
 
-def write_agent_instructions(r):
- """Install or refresh the MVP-OS block in AGENTS.md, and wire up CLAUDE.md.
-
- The block is framework-owned and versioned with the CLI, so it has to track
- upgrades: an agent following stale instructions is worse than one following
- none. Everything outside the markers belongs to the project and is preserved.
- """
- notices=[]
- content="""# MVP-OS project instructions
+AGENT_INSTRUCTIONS = """# MVP-OS project instructions
 
 This project uses MVP-OS as its default product-development operating system.
 
@@ -38,120 +41,280 @@ This project uses MVP-OS as its default product-development operating system.
 
 The agent owns product reasoning and content. MVP-OS owns deterministic state validation and gate transitions.
 """
- block=MARKER_START+"\n"+content+MARKER_END+"\n"
- p=r/"AGENTS.md"
- if not p.exists():
-  p.write_text(block,encoding="utf-8")
- else:
-  s=p.read_text(encoding="utf-8")
-  start=s.find(MARKER_START)
-  legacy=start==-1 and LEGACY_HEADING in s
-  if legacy: start=s.index(LEGACY_HEADING)
-  if start==-1:
-   p.write_text(s.rstrip()+"\n\n"+block,encoding="utf-8")
-  else:
-   end=s.find(MARKER_END,start)
-   tail=s[end+len(MARKER_END):].lstrip("\n") if end!=-1 else ""
-   updated=s[:start]+block+(tail if tail.strip() else "")
-   if updated!=s:
-    p.write_text(updated,encoding="utf-8")
-    notices.append(
-     "Replaced the unmarked MVP-OS block in AGENTS.md (everything from it to "
-     "the end of the file)." if legacy or end==-1
-     else "Refreshed the MVP-OS block in AGENTS.md."
+
+
+def root() -> Path:
+    return Path.cwd()
+
+
+def write_agent_instructions(project_root: Path) -> list[str]:
+    """Install or refresh the MVP-OS block in AGENTS.md, and wire up CLAUDE.md.
+
+    The block is framework-owned and versioned with the CLI, so it has to track
+    upgrades: an agent following stale instructions is worse than one following
+    none. Everything outside the markers belongs to the project and survives.
+    """
+    notices: list[str] = []
+    block = f"{MARKER_START}\n{AGENT_INSTRUCTIONS}{MARKER_END}\n"
+    agents = project_root / "AGENTS.md"
+
+    if not agents.exists():
+        agents.write_text(block, encoding="utf-8")
+    else:
+        existing = agents.read_text(encoding="utf-8")
+        start = existing.find(MARKER_START)
+        # v0.6.0 wrote the block with no marker at all.
+        legacy = start == -1 and LEGACY_HEADING in existing
+        if legacy:
+            start = existing.index(LEGACY_HEADING)
+
+        if start == -1:
+            agents.write_text(existing.rstrip() + "\n\n" + block, encoding="utf-8")
+        else:
+            end = existing.find(MARKER_END, start)
+            tail = (
+                existing[end + len(MARKER_END):].lstrip("\n") if end != -1 else ""
+            )
+            updated = existing[:start] + block + (tail if tail.strip() else "")
+            if updated != existing:
+                agents.write_text(updated, encoding="utf-8")
+                notices.append(
+                    "Replaced the unmarked MVP-OS block in AGENTS.md (everything "
+                    "from it to the end of the file)."
+                    if legacy or end == -1
+                    else "Refreshed the MVP-OS block in AGENTS.md."
+                )
+
+    claude = project_root / "CLAUDE.md"
+    wrapper = "@AGENTS.md\n"
+    if not claude.exists():
+        claude.write_text(wrapper, encoding="utf-8")
+    elif "@AGENTS.md" not in claude.read_text(encoding="utf-8"):
+        claude.write_text(
+            claude.read_text(encoding="utf-8").rstrip() + "\n\n" + wrapper,
+            encoding="utf-8",
+        )
+    return notices
+
+
+def _packaged(name: str) -> str:
+    return files("mvp_os.resources").joinpath(name).read_text(encoding="utf-8")
+
+
+def _digest(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def install_methodology(directory: Path) -> list[str]:
+    """Install or upgrade methodology.md, conffile-style.
+
+    Preserving local edits and propagating upstream changes are the same axis.
+    "Differs from the packaged version" alone cannot tell a project's adaptation
+    from a copy that is merely old, so treating both as untouchable freezes every
+    project on whatever methodology it first installed.
+
+    Recording the digest of what was installed makes the distinction: unchanged
+    since install means safe to upgrade, anything else stays and is reported.
+    """
+    packaged = _packaged("methodology.md")
+    target = directory / "methodology.md"
+    stamp = directory / ".methodology.sha256"
+
+    if not target.exists():
+        target.write_text(packaged, encoding="utf-8")
+        stamp.write_text(_digest(packaged), encoding="utf-8")
+        return []
+
+    current = target.read_text(encoding="utf-8")
+    if current == packaged:
+        stamp.write_text(_digest(packaged), encoding="utf-8")
+        return []
+
+    recorded = stamp.read_text(encoding="utf-8").strip() if stamp.exists() else None
+    if recorded == _digest(current):
+        target.write_text(packaged, encoding="utf-8")
+        stamp.write_text(_digest(packaged), encoding="utf-8")
+        return ["Updated .mvp-os/methodology.md to the packaged version."]
+    if recorded is None:
+        return [
+            "Kept .mvp-os/methodology.md: it predates version tracking, so local "
+            "edits cannot be ruled out. Delete it and re-run init to take the "
+            "packaged one."
+        ]
+    return [
+        "Kept .mvp-os/methodology.md: it has local changes. Delete it and re-run "
+        "init to take the packaged one."
+    ]
+
+
+def install_resources(project_root: Path) -> list[str]:
+    directory = project_root / ".mvp-os"
+    directory.mkdir(parents=True, exist_ok=True)
+    notices = install_methodology(directory)
+
+    gitignore = project_root / ".gitignore"
+    if not gitignore.exists():
+        gitignore.write_text(_packaged("gitignore.template"), encoding="utf-8")
+    else:
+        existing = gitignore.read_text(encoding="utf-8")
+        if ".venv/" not in existing:
+            gitignore.write_text(existing.rstrip() + "\n.venv/\n", encoding="utf-8")
+    return notices
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="mvp-os")
+    subcommands = parser.add_subparsers(dest="command", required=True)
+
+    init = subcommands.add_parser("init")
+    init.add_argument("--name")
+    init.add_argument("--description")
+
+    transition = subcommands.add_parser("transition")
+    transition.add_argument("target")
+
+    for command in ("status", "gate", "next", "review", "validate"):
+        subcommands.add_parser(command)
+    return parser
+
+
+def run_init(state: ProjectState, args: argparse.Namespace) -> int:
+    provider = "spec-kit" if detect_spec_kit(root()) else "none"
+    created = state.init(args.name, args.description, provider)
+
+    changed: list[str] = []
+    if not created:
+        data = state.load()
+        if data.get("sdd", {}).get("provider") != provider:
+            data.setdefault("sdd", {})["provider"] = provider
+            changed.append(f"sdd.provider -> {provider}")
+        for field, value in (("name", args.name), ("description", args.description)):
+            project = data.get("project")
+            if value and isinstance(project, dict) and project.get(field) != value:
+                project[field] = value
+                changed.append(f"project.{field} -> {value}")
+        if changed:
+            state.save(data)
+
+    notices = install_resources(root()) + write_agent_instructions(root())
+
+    print("Initialized MVP-OS" if created else "MVP-OS already initialized")
+    print(f"SDD provider: {provider}")
+    for change in changed:
+        print(f"Updated {change}")
+    for notice in notices:
+        print(notice)
+    return 0
+
+
+def run_transition(state: ProjectState, data: dict, target: str) -> int:
+    """Three checks, in order: readable state, legal move, destination satisfied."""
+    target = target.upper()
+    current = data.get("lifecycle", {}).get("current_gate")
+
+    if not is_valid_gate(target):
+        print(f"REJECTED\n- unknown target gate: {target}")
+        return 1
+
+    structural = validate_state(data, False)
+    if structural:
+        print("REJECTED")
+        for error in structural:
+            print(f"- invalid state: {error}")
+        return 1
+
+    if not transition_allowed(current, target):
+        print(f"REJECTED\n- transition {current} → {target} is not allowed")
+        return 1
+
+    missing = gate_requirements_satisfied(data, target)
+    if missing:
+        print("REJECTED")
+        for error in missing:
+            print(f"- {error}")
+        return 1
+
+    data["lifecycle"]["current_gate"] = target
+    data["lifecycle"]["next_action"] = None
+    state.save(data)
+    print(f"ACCEPTED\n{current} → {target} — {gate_name(target)}")
+    print(
+        "next_action cleared. Set it in .mvp-os/state.yml; validate will fail "
+        "until you do."
     )
- c=r/"CLAUDE.md"; w="@AGENTS.md\n"
- if not c.exists(): c.write_text(w,encoding="utf-8")
- elif "@AGENTS.md" not in c.read_text(encoding="utf-8"): c.write_text(c.read_text(encoding="utf-8").rstrip()+"\n\n"+w,encoding="utf-8")
- return notices
+    return 0
 
-def _digest(text): return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
-def install_methodology(d):
- """Install or upgrade methodology.md, conffile-style.
+def run_read(command: str, data: dict) -> int:
+    """status/gate/next/review. These must never crash: an agent runs them
+    constantly, and a traceback is not a report."""
+    shape = validate_shape(data)
+    if shape:
+        print("UNREADABLE STATE — .mvp-os/state.yml cannot be parsed:")
+        for error in shape:
+            print(f"- {error}")
+        print("Fix the file, then run `mvp-os validate`.")
+        return 1
 
- Preserving local edits and propagating upstream changes are the same axis.
- "Differs from the packaged version" alone cannot tell a project's adaptation
- from a copy that is merely old, so treating both as untouchable freezes every
- project on whatever methodology it first installed.
+    lifecycle = data.get("lifecycle", {})
+    gate = lifecycle.get("current_gate", "G0")
+    next_action = lifecycle.get("next_action") or "(not defined)"
+    provider = data.get("sdd", {}).get("provider")
 
- Recording the digest of what was installed makes the distinction: unchanged
- since install means safe to upgrade, anything else stays and is reported.
- """
- packaged=files("mvp_os.resources").joinpath("methodology.md").read_text(encoding="utf-8")
- target=d/"methodology.md"; stamp=d/".methodology.sha256"
- if not target.exists():
-  target.write_text(packaged,encoding="utf-8"); stamp.write_text(_digest(packaged),encoding="utf-8")
-  return []
- current=target.read_text(encoding="utf-8")
- if current==packaged:
-  stamp.write_text(_digest(packaged),encoding="utf-8")
-  return []
- recorded=stamp.read_text(encoding="utf-8").strip() if stamp.exists() else None
- if recorded==_digest(current):
-  target.write_text(packaged,encoding="utf-8"); stamp.write_text(_digest(packaged),encoding="utf-8")
-  return ["Updated .mvp-os/methodology.md to the packaged version."]
- if recorded is None:
-  return ["Kept .mvp-os/methodology.md: it predates version tracking, so local edits cannot be ruled out. Delete it and re-run init to take the packaged one."]
- return ["Kept .mvp-os/methodology.md: it has local changes. Delete it and re-run init to take the packaged one."]
+    if command == "status":
+        print(
+            f"Project: {data.get('project', {}).get('name') or '(unnamed)'}\n"
+            f"Status: {lifecycle.get('status')}\n"
+            f"Gate: {gate} — {gate_name(gate)}\n"
+            f"SDD: {provider}\n"
+            f"Next: {next_action}"
+        )
+    elif command == "gate":
+        print(f"{gate} — {gate_name(gate)}")
+    elif command == "next":
+        print(lifecycle.get("next_action") or "No next action defined.")
+    elif command == "review":
+        print(
+            f"Gate: {gate} — {gate_name(gate)}\n"
+            f"Status: {lifecycle.get('status')}\n"
+            f"Next action: {next_action}\n"
+            f"SDD provider: {provider}\n"
+            f"Hypotheses: {len(data.get('hypotheses', []))}\n"
+            f"Experiments: {len(data.get('experiments', []))}\n"
+            f"Evidence items: {len(data.get('evidence', []))}\n"
+            f"Decisions: {len(data.get('decisions', []))}"
+        )
+    return 0
 
-def install_resources(r):
- notices=[]
- d=r/".mvp-os"; d.mkdir(parents=True,exist_ok=True)
- notices+=install_methodology(d)
- g=r/".gitignore"; t=files("mvp_os.resources").joinpath("gitignore.template").read_text(encoding="utf-8")
- if not g.exists(): g.write_text(t,encoding="utf-8")
- elif ".venv/" not in g.read_text(encoding="utf-8"): g.write_text(g.read_text(encoding="utf-8").rstrip()+"\n.venv/\n",encoding="utf-8")
- return notices
 
-def main():
- p=argparse.ArgumentParser(prog="mvp-os"); s=p.add_subparsers(dest="command",required=True)
- i=s.add_parser("init"); i.add_argument("--name"); i.add_argument("--description")
- t=s.add_parser("transition"); t.add_argument("target")
- for c in ("status","gate","next","review","validate"): s.add_parser(c)
- a=p.parse_args(); st=ProjectState(root())
- if a.command=="init":
-  provider="spec-kit" if detect_spec_kit(root()) else "none"; created=st.init(a.name,a.description,provider); changed=[]
-  if not created:
-   d=st.load()
-   if d.get("sdd",{}).get("provider")!=provider: d.setdefault("sdd",{})["provider"]=provider; changed.append(f"sdd.provider -> {provider}")
-   for field,value in (("name",a.name),("description",a.description)):
-    if value and isinstance(d.get("project"),dict) and d["project"].get(field)!=value:
-     d["project"][field]=value; changed.append(f"project.{field} -> {value}")
-   if changed: st.save(d)
-  notices=install_resources(root())+write_agent_instructions(root())
-  print("Initialized MVP-OS" if created else "MVP-OS already initialized"); print(f"SDD provider: {provider}")
-  for c in changed: print(f"Updated {c}")
-  for n in notices: print(n)
-  return 0
- if not st.exists(): print("MVP-OS is not initialized. Run: mvp-os init"); return 1
- d=st.load()
- if a.command=="validate":
-  e=validate_state(d)
-  if e: print("INVALID"); [print("- "+x) for x in e]; return 1
-  print("VALID"); return 0
- if a.command=="transition":
-  target=a.target.upper(); current=d.get("lifecycle",{}).get("current_gate")
-  if not is_valid_gate(target): print("REJECTED\n- unknown target gate: "+target); return 1
-  structural=validate_state(d,False)
-  if structural: print("REJECTED"); [print("- invalid state: "+x) for x in structural]; return 1
-  if not transition_allowed(current,target): print(f"REJECTED\n- transition {current} → {target} is not allowed"); return 1
-  req=gate_requirements_satisfied(d,target)
-  if req: print("REJECTED"); [print("- "+x) for x in req]; return 1
-  d["lifecycle"]["current_gate"]=target; d["lifecycle"]["next_action"]=None; st.save(d)
-  print(f"ACCEPTED\n{current} → {target} — {gate_name(target)}")
-  print("next_action cleared. Set it in .mvp-os/state.yml; validate will fail until you do.")
-  return 0
- shape=validate_shape(d)
- if shape:
-  print("UNREADABLE STATE — .mvp-os/state.yml cannot be parsed:")
-  [print("- "+x) for x in shape]
-  print("Fix the file, then run `mvp-os validate`.")
-  return 1
- l=d.get("lifecycle",{}); g=l.get("current_gate","G0")
- if a.command=="status": print(f"Project: {d.get('project',{}).get('name') or '(unnamed)'}\nStatus: {l.get('status')}\nGate: {g} — {gate_name(g)}\nSDD: {d.get('sdd',{}).get('provider')}\nNext: {l.get('next_action') or '(not defined)'}")
- elif a.command=="gate": print(f"{g} — {gate_name(g)}")
- elif a.command=="next": print(l.get("next_action") or "No next action defined.")
- elif a.command=="review": print(f"Gate: {g} — {gate_name(g)}\nStatus: {l.get('status')}\nNext action: {l.get('next_action') or '(not defined)'}\nSDD provider: {d.get('sdd',{}).get('provider')}\nHypotheses: {len(d.get('hypotheses',[]))}\nExperiments: {len(d.get('experiments',[]))}\nEvidence items: {len(d.get('evidence',[]))}\nDecisions: {len(d.get('decisions',[]))}")
- return 0
-if __name__=="__main__": raise SystemExit(main())
+def main() -> int:
+    args = build_parser().parse_args()
+    state = ProjectState(root())
+
+    if args.command == "init":
+        return run_init(state, args)
+
+    if not state.exists():
+        print("MVP-OS is not initialized. Run: mvp-os init")
+        return 1
+
+    data = state.load()
+
+    if args.command == "validate":
+        errors = validate_state(data)
+        if errors:
+            print("INVALID")
+            for error in errors:
+                print(f"- {error}")
+            return 1
+        print("VALID")
+        return 0
+
+    if args.command == "transition":
+        return run_transition(state, data, args.target)
+
+    return run_read(args.command, data)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
