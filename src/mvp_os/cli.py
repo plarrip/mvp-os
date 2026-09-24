@@ -35,11 +35,17 @@ The agent owns product reasoning and content. MVP-OS owns deterministic state va
  elif "@AGENTS.md" not in c.read_text(encoding="utf-8"): c.write_text(c.read_text(encoding="utf-8").rstrip()+"\n\n"+w,encoding="utf-8")
 
 def install_resources(r):
+ notices=[]
  d=r/".mvp-os"; d.mkdir(parents=True,exist_ok=True)
- d.joinpath("methodology.md").write_text(files("mvp_os.resources").joinpath("methodology.md").read_text(encoding="utf-8"),encoding="utf-8")
+ packaged=files("mvp_os.resources").joinpath("methodology.md").read_text(encoding="utf-8")
+ methodology=d/"methodology.md"
+ if not methodology.exists(): methodology.write_text(packaged,encoding="utf-8")
+ elif methodology.read_text(encoding="utf-8")!=packaged:
+  notices.append("Kept .mvp-os/methodology.md: it differs from the packaged version. Delete it and re-run init to take the packaged one.")
  g=r/".gitignore"; t=files("mvp_os.resources").joinpath("gitignore.template").read_text(encoding="utf-8")
  if not g.exists(): g.write_text(t,encoding="utf-8")
  elif ".venv/" not in g.read_text(encoding="utf-8"): g.write_text(g.read_text(encoding="utf-8").rstrip()+"\n.venv/\n",encoding="utf-8")
+ return notices
 
 def main():
  p=argparse.ArgumentParser(prog="mvp-os"); s=p.add_subparsers(dest="command",required=True)
@@ -48,12 +54,19 @@ def main():
  for c in ("status","gate","next","review","validate"): s.add_parser(c)
  a=p.parse_args(); st=ProjectState(root())
  if a.command=="init":
-  provider="spec-kit" if detect_spec_kit(root()) else "none"; created=st.init(a.name,a.description,provider)
+  provider="spec-kit" if detect_spec_kit(root()) else "none"; created=st.init(a.name,a.description,provider); changed=[]
   if not created:
-   d=st.load(); detected="spec-kit" if detect_spec_kit(root()) else "none"
-   if d.get("sdd",{}).get("provider")!=detected: d.setdefault("sdd",{})["provider"]=detected; st.save(d)
-  install_resources(root()); write_agent_instructions(root())
-  print("Initialized MVP-OS" if created else "MVP-OS already initialized"); print(f"SDD provider: {provider}"); return 0
+   d=st.load()
+   if d.get("sdd",{}).get("provider")!=provider: d.setdefault("sdd",{})["provider"]=provider; changed.append(f"sdd.provider -> {provider}")
+   for field,value in (("name",a.name),("description",a.description)):
+    if value and isinstance(d.get("project"),dict) and d["project"].get(field)!=value:
+     d["project"][field]=value; changed.append(f"project.{field} -> {value}")
+   if changed: st.save(d)
+  notices=install_resources(root()); write_agent_instructions(root())
+  print("Initialized MVP-OS" if created else "MVP-OS already initialized"); print(f"SDD provider: {provider}")
+  for c in changed: print(f"Updated {c}")
+  for n in notices: print(n)
+  return 0
  if not st.exists(): print("MVP-OS is not initialized. Run: mvp-os init"); return 1
  d=st.load()
  if a.command=="validate":

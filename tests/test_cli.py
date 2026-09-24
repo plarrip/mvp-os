@@ -238,20 +238,32 @@ def test_validate_fails_until_the_agent_states_the_next_action(project, run_cli)
     assert run_cli("validate").stdout.strip() == "VALID"
 
 
-@pytest.mark.xfail(
-    strict=True, reason="install_resources overwrites methodology.md silently"
-)
 def test_init_does_not_silently_discard_local_methodology_edits(project, run_cli):
+    """Re-running init must not destroy a project's adapted methodology."""
     methodology = project / ".mvp-os" / "methodology.md"
     methodology.write_text(methodology.read_text() + "\n## House amendment\n")
-    run_cli("init")
+    result = run_cli("init")
     assert "House amendment" in methodology.read_text()
+    assert "Kept .mvp-os/methodology.md" in result.stdout
 
 
-@pytest.mark.xfail(
-    strict=True, reason="init --name is ignored on an already-initialized project"
-)
-def test_init_name_on_an_existing_project_is_not_silently_dropped(project, run_cli):
-    result = run_cli("init", "--name", "Renamed")
+def test_init_reinstalls_a_deleted_methodology(project, run_cli):
+    """Keeping local edits must not mean the file can never be restored."""
+    methodology = project / ".mvp-os" / "methodology.md"
+    methodology.unlink()
+    run_cli("init")
+    assert methodology.is_file()
+    assert methodology.read_text().strip()
+
+
+def test_init_name_on_an_existing_project_is_applied(project, run_cli):
+    result = run_cli("init", "--name", "Renamed", "--description", "A lean thing")
     state = read_state(project)
-    assert state["project"]["name"] == "Renamed" or "Renamed" in result.stdout
+    assert state["project"]["name"] == "Renamed"
+    assert state["project"]["description"] == "A lean thing"
+    assert "project.name -> Renamed" in result.stdout
+
+
+def test_init_without_arguments_reports_no_changes(project, run_cli):
+    result = run_cli("init")
+    assert "Updated" not in result.stdout
