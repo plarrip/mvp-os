@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import pytest
 
+import hashlib
+
 from conftest import HYPOTHESIS_FIXTURE, advance, read_state
 
 
@@ -301,7 +303,51 @@ def test_init_does_not_silently_discard_local_methodology_edits(project, run_cli
     methodology.write_text(methodology.read_text() + "\n## House amendment\n")
     result = run_cli("init")
     assert "House amendment" in methodology.read_text()
-    assert "Kept .mvp-os/methodology.md" in result.stdout
+    assert "has local changes" in result.stdout
+
+
+def test_init_records_what_it_installed(project):
+    stamp = project / ".mvp-os" / ".methodology.sha256"
+    assert stamp.is_file()
+    methodology = (project / ".mvp-os" / "methodology.md").read_text()
+    assert stamp.read_text().strip() == hashlib.sha256(
+        methodology.encode("utf-8")
+    ).hexdigest()
+
+
+def test_init_upgrades_an_untouched_but_outdated_methodology(project, run_cli):
+    """Keeping local edits must not mean nobody ever receives an update.
+
+    The recorded digest is what separates "the project adapted this" from
+    "this is simply old" -- without it both look identical and every project
+    freezes on the methodology it first installed.
+    """
+    methodology = project / ".mvp-os" / "methodology.md"
+    packaged = methodology.read_text()
+    outdated = "# MVP-OS Methodology\n\nAn older edition.\n"
+    methodology.write_text(outdated)
+    (project / ".mvp-os" / ".methodology.sha256").write_text(
+        hashlib.sha256(outdated.encode("utf-8")).hexdigest()
+    )
+
+    result = run_cli("init")
+    assert methodology.read_text() == packaged
+    assert "Updated .mvp-os/methodology.md" in result.stdout
+
+
+def test_init_keeps_a_methodology_it_cannot_vouch_for(project, run_cli):
+    """No recorded digest means edits cannot be ruled out, so keep the file."""
+    methodology = project / ".mvp-os" / "methodology.md"
+    (project / ".mvp-os" / ".methodology.sha256").unlink()
+    methodology.write_text("# MVP-OS Methodology\n\nAn older edition.\n")
+    result = run_cli("init")
+    assert "An older edition." in methodology.read_text()
+    assert "predates version tracking" in result.stdout
+
+
+def test_an_up_to_date_methodology_produces_no_noise(project, run_cli):
+    result = run_cli("init")
+    assert "methodology" not in result.stdout
 
 
 def test_init_reinstalls_a_deleted_methodology(project, run_cli):

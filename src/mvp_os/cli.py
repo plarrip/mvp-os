@@ -1,5 +1,6 @@
 from __future__ import annotations
 import argparse
+import hashlib
 from pathlib import Path
 from importlib.resources import files
 from .state import ProjectState,detect_spec_kit
@@ -64,14 +65,40 @@ The agent owns product reasoning and content. MVP-OS owns deterministic state va
  elif "@AGENTS.md" not in c.read_text(encoding="utf-8"): c.write_text(c.read_text(encoding="utf-8").rstrip()+"\n\n"+w,encoding="utf-8")
  return notices
 
+def _digest(text): return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+def install_methodology(d):
+ """Install or upgrade methodology.md, conffile-style.
+
+ Preserving local edits and propagating upstream changes are the same axis.
+ "Differs from the packaged version" alone cannot tell a project's adaptation
+ from a copy that is merely old, so treating both as untouchable freezes every
+ project on whatever methodology it first installed.
+
+ Recording the digest of what was installed makes the distinction: unchanged
+ since install means safe to upgrade, anything else stays and is reported.
+ """
+ packaged=files("mvp_os.resources").joinpath("methodology.md").read_text(encoding="utf-8")
+ target=d/"methodology.md"; stamp=d/".methodology.sha256"
+ if not target.exists():
+  target.write_text(packaged,encoding="utf-8"); stamp.write_text(_digest(packaged),encoding="utf-8")
+  return []
+ current=target.read_text(encoding="utf-8")
+ if current==packaged:
+  stamp.write_text(_digest(packaged),encoding="utf-8")
+  return []
+ recorded=stamp.read_text(encoding="utf-8").strip() if stamp.exists() else None
+ if recorded==_digest(current):
+  target.write_text(packaged,encoding="utf-8"); stamp.write_text(_digest(packaged),encoding="utf-8")
+  return ["Updated .mvp-os/methodology.md to the packaged version."]
+ if recorded is None:
+  return ["Kept .mvp-os/methodology.md: it predates version tracking, so local edits cannot be ruled out. Delete it and re-run init to take the packaged one."]
+ return ["Kept .mvp-os/methodology.md: it has local changes. Delete it and re-run init to take the packaged one."]
+
 def install_resources(r):
  notices=[]
  d=r/".mvp-os"; d.mkdir(parents=True,exist_ok=True)
- packaged=files("mvp_os.resources").joinpath("methodology.md").read_text(encoding="utf-8")
- methodology=d/"methodology.md"
- if not methodology.exists(): methodology.write_text(packaged,encoding="utf-8")
- elif methodology.read_text(encoding="utf-8")!=packaged:
-  notices.append("Kept .mvp-os/methodology.md: it differs from the packaged version. Delete it and re-run init to take the packaged one.")
+ notices+=install_methodology(d)
  g=r/".gitignore"; t=files("mvp_os.resources").joinpath("gitignore.template").read_text(encoding="utf-8")
  if not g.exists(): g.write_text(t,encoding="utf-8")
  elif ".venv/" not in g.read_text(encoding="utf-8"): g.write_text(g.read_text(encoding="utf-8").rstrip()+"\n.venv/\n",encoding="utf-8")
