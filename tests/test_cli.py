@@ -36,6 +36,63 @@ def test_init_appends_to_an_existing_agents_file(tmp_path, run_cli):
     assert "MVP-OS project instructions" in content
 
 
+def test_the_block_is_delimited_at_both_ends(project):
+    agents = (project / "AGENTS.md").read_text()
+    assert agents.count("<!-- MVP-OS instructions -->") == 1
+    assert agents.count("<!-- /MVP-OS instructions -->") == 1
+
+
+def test_init_refreshes_a_stale_block_instead_of_freezing_it(project, run_cli):
+    """The block is versioned with the CLI; it has to track upgrades.
+
+    An agent following stale instructions is worse than one following none.
+    """
+    agents = project / "AGENTS.md"
+    stale = agents.read_text().replace(
+        "To change gates, use `mvp-os transition <GATE>`", "OLD INSTRUCTION"
+    )
+    agents.write_text(stale)
+    result = run_cli("init")
+    refreshed = agents.read_text()
+    assert "OLD INSTRUCTION" not in refreshed
+    assert "mvp-os transition" in refreshed
+    assert "Refreshed the MVP-OS block" in result.stdout
+
+
+def test_refreshing_preserves_project_content_around_the_block(project, run_cli):
+    agents = project / "AGENTS.md"
+    agents.write_text(
+        "# House rules\n\nAlways run the linter.\n\n"
+        + agents.read_text()
+        + "\n## Deployment\n\nShip on Fridays, we are brave.\n"
+    )
+    run_cli("init")
+    content = agents.read_text()
+    assert "Always run the linter." in content
+    assert "Ship on Fridays, we are brave." in content
+    assert content.count("<!-- MVP-OS instructions -->") == 1
+
+
+def test_a_legacy_unmarked_block_is_replaced_not_duplicated(tmp_path, run_cli):
+    """v0.6.0 wrote the block without any marker, so re-init appended a copy."""
+    (tmp_path / "AGENTS.md").write_text(
+        "# House rules\n\nAlways run the linter.\n\n"
+        "# MVP-OS project instructions\n\n1. Read `.mvp-os/methodology.md`.\n"
+    )
+    result = run_cli("init")
+    content = (tmp_path / "AGENTS.md").read_text()
+    assert content.count("# MVP-OS project instructions") == 1
+    assert "Always run the linter." in content
+    assert "Replaced the unmarked MVP-OS block" in result.stdout
+
+
+def test_a_current_block_is_left_alone_silently(project, run_cli):
+    before = (project / "AGENTS.md").read_text()
+    result = run_cli("init")
+    assert (project / "AGENTS.md").read_text() == before
+    assert "AGENTS.md" not in result.stdout
+
+
 def test_init_preserves_an_existing_claude_file(tmp_path, run_cli):
     (tmp_path / "CLAUDE.md").write_text("# Notes\n\nUse pnpm.\n")
     run_cli("init")

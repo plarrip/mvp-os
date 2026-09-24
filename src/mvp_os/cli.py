@@ -8,7 +8,18 @@ from .validation import validate_state,validate_shape
 
 def root(): return Path.cwd()
 
+MARKER_START="<!-- MVP-OS instructions -->"
+MARKER_END="<!-- /MVP-OS instructions -->"
+LEGACY_HEADING="# MVP-OS project instructions"
+
 def write_agent_instructions(r):
+ """Install or refresh the MVP-OS block in AGENTS.md, and wire up CLAUDE.md.
+
+ The block is framework-owned and versioned with the CLI, so it has to track
+ upgrades: an agent following stale instructions is worse than one following
+ none. Everything outside the markers belongs to the project and is preserved.
+ """
+ notices=[]
  content="""# MVP-OS project instructions
 
 This project uses MVP-OS as its default product-development operating system.
@@ -26,14 +37,32 @@ This project uses MVP-OS as its default product-development operating system.
 
 The agent owns product reasoning and content. MVP-OS owns deterministic state validation and gate transitions.
 """
- marker="<!-- MVP-OS instructions -->"; p=r/"AGENTS.md"; block=marker+"\n"+content
- if p.exists():
+ block=MARKER_START+"\n"+content+MARKER_END+"\n"
+ p=r/"AGENTS.md"
+ if not p.exists():
+  p.write_text(block,encoding="utf-8")
+ else:
   s=p.read_text(encoding="utf-8")
-  if marker not in s: p.write_text(s.rstrip()+"\n\n"+block+"\n",encoding="utf-8")
- else: p.write_text(block+"\n",encoding="utf-8")
+  start=s.find(MARKER_START)
+  legacy=start==-1 and LEGACY_HEADING in s
+  if legacy: start=s.index(LEGACY_HEADING)
+  if start==-1:
+   p.write_text(s.rstrip()+"\n\n"+block,encoding="utf-8")
+  else:
+   end=s.find(MARKER_END,start)
+   tail=s[end+len(MARKER_END):].lstrip("\n") if end!=-1 else ""
+   updated=s[:start]+block+(tail if tail.strip() else "")
+   if updated!=s:
+    p.write_text(updated,encoding="utf-8")
+    notices.append(
+     "Replaced the unmarked MVP-OS block in AGENTS.md (everything from it to "
+     "the end of the file)." if legacy or end==-1
+     else "Refreshed the MVP-OS block in AGENTS.md."
+    )
  c=r/"CLAUDE.md"; w="@AGENTS.md\n"
  if not c.exists(): c.write_text(w,encoding="utf-8")
  elif "@AGENTS.md" not in c.read_text(encoding="utf-8"): c.write_text(c.read_text(encoding="utf-8").rstrip()+"\n\n"+w,encoding="utf-8")
+ return notices
 
 def install_resources(r):
  notices=[]
@@ -63,7 +92,7 @@ def main():
     if value and isinstance(d.get("project"),dict) and d["project"].get(field)!=value:
      d["project"][field]=value; changed.append(f"project.{field} -> {value}")
    if changed: st.save(d)
-  notices=install_resources(root()); write_agent_instructions(root())
+  notices=install_resources(root())+write_agent_instructions(root())
   print("Initialized MVP-OS" if created else "MVP-OS already initialized"); print(f"SDD provider: {provider}")
   for c in changed: print(f"Updated {c}")
   for n in notices: print(n)
