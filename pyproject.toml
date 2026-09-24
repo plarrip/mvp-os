@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mvp-os"
+version = "0.7.0"
+description = "Lean MVP product development operating system with optional SDD integrations."
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+dependencies = ["PyYAML>=6.0"]
+
+[project.scripts]
+mvp-os = "mvp_os.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+mvp_os = ["resources/*.md"]
