@@ -68,8 +68,10 @@ def main():
   if not transition_allowed(current,target): print(f"REJECTED\n- transition {current} → {target} is not allowed"); return 1
   req=gate_requirements_satisfied(d,target)
   if req: print("REJECTED"); [print("- "+x) for x in req]; return 1
-  d["lifecycle"]["current_gate"]=target; d["lifecycle"]["next_action"]=f"Work on {gate_name(target)}."; st.save(d)
-  print(f"ACCEPTED\n{current} → {target} — {gate_name(target)}"); return 0
+  d["lifecycle"]["current_gate"]=target; d["lifecycle"]["next_action"]=None; st.save(d)
+  print(f"ACCEPTED\n{current} → {target} — {gate_name(target)}")
+  print("next_action cleared. Set it in .mvp-os/state.yml; validate will fail until you do.")
+  return 0
  l=d.get("lifecycle",{}); g=l.get("current_gate","G0")
  if a.command=="status": print(f"Project: {d.get('project',{}).get('name') or '(unnamed)'}\nStatus: {l.get('status')}\nGate: {g} — {gate_name(g)}\nSDD: {d.get('sdd',{}).get('provider')}\nNext: {l.get('next_action') or '(not defined)'}")
  elif a.command=="gate": print(f"{g} — {gate_name(g)}")

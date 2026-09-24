@@ -77,6 +77,18 @@ def test_unsupported_schema_version(state, bad):
     assert any("schema_version" in e for e in validate_state(state))
 
 
+def test_active_project_must_declare_a_next_action(state):
+    """A transition clears next_action; validate is what makes filling it mandatory."""
+    state["lifecycle"]["next_action"] = None
+    assert any("next_action is required" in e for e in validate_state(state))
+
+
+@pytest.mark.parametrize("status", ["paused", "stopped", "completed"])
+def test_inactive_projects_need_no_next_action(state, status):
+    state["lifecycle"].update({"status": status, "next_action": None})
+    assert validate_state(state) == []
+
+
 def test_missing_top_level_field(state):
     del state["hypotheses"]
     assert any("missing top-level field: hypotheses" in e for e in validate_state(state))

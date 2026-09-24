@@ -16,6 +16,7 @@ def validate_state(data, check_gate_requirements=True):
     if isinstance(l,dict):
         if not is_valid_gate(l.get("current_gate")): errors.append(f"invalid lifecycle.current_gate: {l.get('current_gate')!r}")
         if l.get("status") not in {"active","paused","stopped","completed"}: errors.append(f"invalid lifecycle.status: {l.get('status')!r}")
+        if l.get("status")=="active" and not l.get("next_action"): errors.append("lifecycle.next_action is required while the project is active")
     for field in ("hypotheses","experiments","evidence","learnings","decisions"):
         for i,item in enumerate(data.get(field,[])):
             if not isinstance(item,dict):

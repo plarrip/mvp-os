@@ -61,7 +61,13 @@ def test_read_commands_work_on_a_fresh_project(project, run_cli):
 
 
 def test_D_and_E_full_journey(project, run_cli):
-    """Tests D and E end to end: G0->G1->G2->G3, then back to G2."""
+    """Tests D and E end to end: G0->G1->G2->G3, then back to G2.
+
+    Note the plan/move rhythm. Because a transition clears next_action and
+    transitions structurally validate first, the agent cannot climb two gates
+    without saying what it intends to do at each one. Declaring intent is the
+    price of moving.
+    """
     advance(
         project,
         project={"name": "MVP-OS", "description": "Lean MVP operating system"},
@@ -69,9 +75,14 @@ def test_D_and_E_full_journey(project, run_cli):
     )
     assert "ACCEPTED" in run_cli("transition", "G1").stdout
 
-    advance(project, problem={"problem": "Jumps from idea to code without validating"})
+    advance(
+        project,
+        problem={"problem": "Jumps from idea to code without validating"},
+        lifecycle={"next_action": "Name the riskiest assumption"},
+    )
     assert "ACCEPTED" in run_cli("transition", "G2").stdout
 
+    advance(project, lifecycle={"next_action": "Write H1 with a success metric"})
     refused = run_cli("transition", "G3")
     assert refused.returncode == 1
     assert "at least one hypothesis is required" in refused.stdout
@@ -81,10 +92,29 @@ def test_D_and_E_full_journey(project, run_cli):
     assert read_state(project)["lifecycle"]["current_gate"] == "G3"
 
     # Test E: new evidence sends us back.
+    advance(project, lifecycle={"next_action": "H1 refuted; revisit the segment"})
     back = run_cli("transition", "G2")
     assert "ACCEPTED" in back.stdout
     assert read_state(project)["lifecycle"]["current_gate"] == "G2"
+
+    # Every transition leaves next_action empty on purpose; the agent fills it.
+    assert read_state(project)["lifecycle"]["next_action"] is None
+    advance(project, lifecycle={"next_action": "Reframe H1 around the new segment"})
     assert run_cli("validate").stdout.strip() == "VALID"
+
+
+def test_transitions_cannot_be_chained_without_declaring_intent(project, run_cli):
+    """Consequence of the cleared hole: no silent gate climbing."""
+    advance(
+        project,
+        project={"description": "Lean MVP operating system"},
+        problem={"user": "Solo founder", "problem": "Builds before validating"},
+    )
+    assert "ACCEPTED" in run_cli("transition", "G1").stdout
+    blocked = run_cli("transition", "G2")
+    assert blocked.returncode == 1
+    assert "next_action is required" in blocked.stdout
+    assert read_state(project)["lifecycle"]["current_gate"] == "G1"
 
 
 def test_C_refuses_to_skip_gates(project, run_cli):
@@ -150,23 +180,41 @@ def test_status_degrades_gracefully_on_a_corrupt_state(project, run_cli):
     assert result.returncode == 1
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="transition overwrites next_action with boilerplate, destroying "
-           "the agent's reasoning at the moment it matters most",
-)
-def test_transition_does_not_clobber_next_action(project, run_cli):
+def test_transition_clears_next_action_instead_of_inventing_one(project, run_cli):
+    """A gate change invalidates the old plan; the CLI must not write the new one.
+
+    Section 10: MVP-OS validates, the agent reasons. Leaving a mandatory hole
+    forces the agent to state where it is going; filling it with boilerplate
+    would overwrite real reasoning at exactly the moment a transition carries
+    the most information -- above all on a backward move, which happens
+    precisely because evidence invalidated something.
+    """
     advance(
         project,
         project={"description": "Lean MVP operating system"},
         problem={"user": "Solo technical founder"},
-        lifecycle={"next_action": "Interview 5 founders about their current process"},
+        lifecycle={"next_action": "Interview 5 founders about their process"},
+    )
+    result = run_cli("transition", "G1")
+    assert "ACCEPTED" in result.stdout
+    assert "next_action cleared" in result.stdout
+    assert read_state(project)["lifecycle"]["next_action"] is None
+
+
+def test_validate_fails_until_the_agent_states_the_next_action(project, run_cli):
+    """The hole is mandatory, not cosmetic."""
+    advance(
+        project,
+        project={"description": "Lean MVP operating system"},
+        problem={"user": "Solo technical founder"},
     )
     run_cli("transition", "G1")
-    assert (
-        read_state(project)["lifecycle"]["next_action"]
-        == "Interview 5 founders about their current process"
-    )
+    failed = run_cli("validate")
+    assert failed.returncode == 1
+    assert "next_action is required" in failed.stdout
+
+    advance(project, lifecycle={"next_action": "Draft the riskiest assumption"})
+    assert run_cli("validate").stdout.strip() == "VALID"
 
 
 @pytest.mark.xfail(
