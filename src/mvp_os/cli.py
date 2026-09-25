@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import shutil
+from importlib.metadata import PackageNotFoundError, version as _package_version
 from importlib.resources import files
 from pathlib import Path
 
@@ -22,6 +23,16 @@ from .lifecycle import (
 )
 from .state import ProjectState, StateError, detect_spec_kit
 from .validation import validate_shape, validate_state
+
+def get_version() -> str:
+    """The installed version, read from package metadata rather than restated
+    here: a version constant in the source is one more thing that can disagree
+    with pyproject.toml."""
+    try:
+        return _package_version("mvp-os")
+    except PackageNotFoundError:  # running from a source tree, uninstalled
+        return "unknown"
+
 
 MARKER_START = "<!-- MVP-OS instructions -->"
 MARKER_END = "<!-- /MVP-OS instructions -->"
@@ -418,6 +429,9 @@ def run_handoff(data: dict) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="mvp-os")
+    parser.add_argument(
+        "--version", action="version", version=f"mvp-os {get_version()}"
+    )
     subcommands = parser.add_subparsers(dest="command", required=True)
 
     init = subcommands.add_parser("init")
@@ -544,8 +558,8 @@ def run_read(command: str, data: dict, project_root: Path) -> int:
         )
         if methodology_is_outdated(project_root):
             print(
-                "Note: .mvp-os/methodology.md is outdated — run `mvp-os init` "
-                "to update it"
+                f"Note: .mvp-os/methodology.md is outdated (CLI is "
+                f"{get_version()}) — run `mvp-os init` to update it"
             )
     elif command == "gate":
         print(f"{gate} — {gate_name(gate)}")

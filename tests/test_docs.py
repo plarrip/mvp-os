@@ -178,3 +178,24 @@ def test_the_readme_lens_grid_matches_the_code():
             )
             del counts[name]
     assert not counts, f"lenses missing from the README grid: {sorted(counts)}"
+
+
+def test_the_cli_reports_a_version():
+    """Deliberately not asserting it equals pyproject's: the value comes from
+    package metadata, recorded at install time, so an editable checkout whose
+    version was bumped without reinstalling would fail this for environmental
+    reasons rather than real ones."""
+    from mvp_os.cli import get_version
+
+    assert get_version()
+    assert get_version() != "unknown", "the package is not installed"
+
+
+def test_the_current_version_is_in_the_changelog():
+    """Bumping without writing down what changed is the drift worth catching."""
+    import re
+
+    pyproject = (REPO_ROOT / "pyproject.toml").read_text()
+    current = re.search(r'^version = "([^"]+)"', pyproject, re.M).group(1)
+    changelog = (REPO_ROOT / "CHANGELOG.md").read_text()
+    assert f"## {current}" in changelog, f"{current} has no CHANGELOG entry"

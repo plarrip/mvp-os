@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.14.0
+
+### Added
+
+- `mvp-os --version`. In a tool where version drift between the CLI and a
+  project's installed files is a real failure mode, not being able to ask it
+  which version it is was an odd gap. The outdated-methodology note now names
+  the CLI version too, so "outdated" says what it is outdated against.
+
+  The version comes from package metadata rather than a constant in the source,
+  which is one fewer thing that can disagree with pyproject.toml. Note that an
+  editable install reports the version recorded when it was installed, so bump
+  and reinstall together.
+
+- A test that the version in pyproject.toml has a CHANGELOG entry. Bumping
+  without writing down what changed is the drift worth catching.
+
+### Documentation
+
+- README gains an Updating section: both layers, and why `uv tool upgrade` will
+  not move a tag-pinned install.
+
 ## 0.13.0
 
 ### Added

@@ -82,10 +82,6 @@ its own:
 Instead of writing code, the agent will ask who has the problem, what they do
 today, and what you actually observed.
 
-> **After upgrading MVP-OS**, re-run `mvp-os init` in each project to pick up
-> the new methodology — installed files only sync during `init`. `mvp-os status`
-> tells you when a project has fallen behind.
-
 > **Using an SDD tool?** Initialize it *first* — `specify init --here`, then
 > `mvp-os init`. Detection only happens during `init`. If you get the order
 > wrong, re-run `mvp-os init` and check with `mvp-os status`.
@@ -258,6 +254,7 @@ mvp-os validate                                  # is the state coherent?
 mvp-os transition <GATE>                         # the only way to change gate
 mvp-os handoff                                   # emit the product context
 mvp-os remove [--yes]                            # undo init
+mvp-os --version                                 # which CLI you are running
 ```
 
 The agent writes the thinking; MVP-OS checks it. There is deliberately no
@@ -265,6 +262,42 @@ The agent writes the thinking; MVP-OS checks it. There is deliberately no
 enforcement belongs here.
 
 ---
+
+## Updating
+
+Nothing updates itself, and there are two layers. Both need a step.
+
+**1. The CLI**
+
+```bash
+uv tool install --force "git+https://github.com/plarrip/mvp-os"
+# or: pipx install --force "git+https://github.com/plarrip/mvp-os"
+
+mvp-os --version
+```
+
+Reinstalling with `--force` always works. `uv tool upgrade` will not move an
+install pinned to a tag — `...@v0.11.0` stays at v0.11.0 by design.
+
+**2. Each project**
+
+Updating the CLI does not touch files already written into your projects.
+`.mvp-os/methodology.md` and the `AGENTS.md` block only sync during `init`:
+
+```bash
+cd your-project
+mvp-os init
+```
+
+This is the step people forget, so `mvp-os status` says when a project has
+fallen behind:
+
+```text
+Note: .mvp-os/methodology.md is outdated (CLI is 0.14.0) — run `mvp-os init` to update it
+```
+
+It stays quiet if you adapted the methodology yourself. Being out of step on
+purpose is a decision, not a problem.
 
 ## Removing it
 
