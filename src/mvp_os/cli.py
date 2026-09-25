@@ -310,7 +310,10 @@ def run_remove(project_root: Path, confirmed: bool) -> int:
 
     apply_removal(project_root)
     print("\nMVP-OS removed. Your project's own files and code are untouched.")
-    print("Run `pip uninstall mvp-os` to remove the CLI itself.")
+    print(
+        "To remove the CLI itself, use whichever installed it: "
+        "`uv tool uninstall mvp-os` or `pipx uninstall mvp-os`."
+    )
     return 0
 
 

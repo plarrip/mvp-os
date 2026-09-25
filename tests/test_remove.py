@@ -111,3 +111,14 @@ def test_remove_leaves_project_code_alone(project, run_cli):
     (project / "src" / "main.py").write_text("print('hello')\n")
     run_cli("remove", "--yes")
     assert (project / "src" / "main.py").read_text() == "print('hello')\n"
+
+
+def test_remove_points_at_a_command_that_can_actually_work(project, run_cli):
+    """It used to say `pip uninstall mvp-os`, which cannot find a tool installed
+    by `uv tool` or `pipx` -- and outside a virtualenv there is often no `pip`
+    on PATH at all. The README was corrected and this message was not, so a
+    user still hit it. Fixing docs is not fixing the product."""
+    output = run_cli("remove", "--yes").stdout
+    assert "pip uninstall" not in output
+    assert "uv tool uninstall" in output
+    assert "pipx uninstall" in output

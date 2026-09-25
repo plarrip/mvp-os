@@ -208,3 +208,17 @@ def test_the_uninstall_instructions_match_the_install_instructions():
     reachable from a shell. It said so anyway until a user hit it."""
     assert "pip uninstall" not in README or "will not find it" in README
     assert "uv tool uninstall" in README
+
+
+def test_the_readme_examples_show_the_current_version():
+    """Sample output quoting a version that does not exist is the same defect
+    as any other documentation that has drifted from the code -- smaller, but
+    the same. Cheap to keep true: one substitution per release."""
+    import re
+
+    pyproject = (REPO_ROOT / "pyproject.toml").read_text()
+    current = re.search(r'^version = "([^"]+)"', pyproject, re.M).group(1)
+    shown = set(re.findall(r"mvp-os (\d+\.\d+\.\d+)", README))
+    shown |= set(re.findall(r"CLI is (\d+\.\d+\.\d+)", README))
+    stale = shown - {current}
+    assert not stale, f"README shows {sorted(stale)}, the version is {current}"

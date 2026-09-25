@@ -297,13 +297,13 @@ cd app-one && mvp-os sync
 ```text
 Updated .mvp-os/methodology.md to the packaged version.
 Refreshed the MVP-OS block in AGENTS.md.
-Synced with mvp-os 0.15.0
+Synced with mvp-os 0.16.1
 ```
 
 You do not have to remember which projects are behind. `mvp-os status` says so:
 
 ```text
-Note: .mvp-os/methodology.md is outdated (CLI is 0.15.0) — run `mvp-os sync`
+Note: .mvp-os/methodology.md is outdated (CLI is 0.16.1) — run `mvp-os sync`
 ```
 
 It stays quiet if you edited the methodology yourself. Being out of step on

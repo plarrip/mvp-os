@@ -1,6 +1,17 @@
 # Changelog
 
-## Unreleased
+## 0.16.1
+
+### Fixed
+
+- `mvp-os remove` told you to run `pip uninstall mvp-os`. The README had
+  already been corrected; the message in the code had not, so the fix reached
+  the documentation and not the product. Found by running the whole
+  install-use-update-uninstall cycle with the README's own commands, which is
+  what nothing had ever done.
+
+  It now names the tools that can actually work: `uv tool uninstall` or `pipx
+  uninstall`.
 
 ### Documentation
 
