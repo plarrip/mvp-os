@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.15.0
+
+### Added
+
+- `mvp-os sync`: refresh a project's copied files after upgrading the CLI.
+  `init` already did this and still does — sync exists because the verb
+  matters. Nobody looking for how to update reads the help for a command called
+  `init`, and a tool saying "this is outdated, run `init`" reads like a
+  mistake. The outdated-methodology note now names `sync`.
+
+### Documentation
+
+- The update instructions recommended `uv tool install --force`, which is
+  "install" used to mean "upgrade". `uv tool upgrade mvp-os --reinstall` is the
+  correct command and was verified to re-fetch from git. `--force` install is
+  now mentioned only for changing a pinned version.
+
 ## 0.14.0
 
 ### Added

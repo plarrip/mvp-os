@@ -424,7 +424,7 @@ def test_status_reports_an_outdated_methodology(project, run_cli):
     result = run_cli("status")
     assert result.returncode == 0
     assert "methodology.md is outdated" in result.stdout
-    assert "mvp-os init" in result.stdout
+    assert "mvp-os sync" in result.stdout, "the note must name the command that fixes it"
 
 
 def test_status_is_quiet_when_the_methodology_is_current(project, run_cli):
@@ -446,7 +446,14 @@ def test_status_says_nothing_when_it_cannot_tell(project, run_cli):
     assert "outdated" not in run_cli("status").stdout
 
 
-def test_init_clears_the_outdated_notice(project, run_cli):
+def test_sync_clears_the_outdated_notice(project, run_cli):
+    _pretend_the_methodology_is_old(project)
+    run_cli("sync")
+    assert "outdated" not in run_cli("status").stdout
+
+
+def test_init_also_refreshes_since_it_installs_the_same_files(project, run_cli):
+    """sync exists for discoverability, not because init stopped working."""
     _pretend_the_methodology_is_old(project)
     run_cli("init")
     assert "outdated" not in run_cli("status").stdout

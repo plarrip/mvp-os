@@ -273,36 +273,46 @@ your agent reads every session — and they do not change when the tool changes.
           THE TOOL                            YOUR PROJECTS
    ~/.local/.../mvp-os                 app-one/.mvp-os/methodology.md
                           init copies  app-two/.mvp-os/methodology.md
-   updated once  ──────────────────▶   app-three/.mvp-os/methodology.md
-                                       refreshed one by one
+   upgraded once  ─────────────────▶   app-three/.mvp-os/methodology.md
+                                       synced one by one
 ```
 
 So updating takes two commands, in this order.
 
-**1 · Update the tool**
+**1 · Upgrade the tool**
 
 ```bash
-uv tool install --force "git+https://github.com/plarrip/mvp-os"
+uv tool upgrade mvp-os --reinstall
+# or: pipx reinstall mvp-os
+
 mvp-os --version
 ```
 
-**2 · Refresh each project that uses it**
+**2 · Sync each project that uses it**
 
 ```bash
-cd app-one && mvp-os init
+cd app-one && mvp-os sync
+```
+
+```text
+Updated .mvp-os/methodology.md to the packaged version.
+Refreshed the MVP-OS block in AGENTS.md.
+Synced with mvp-os 0.15.0
 ```
 
 You do not have to remember which projects are behind. `mvp-os status` says so:
 
 ```text
-Note: .mvp-os/methodology.md is outdated (CLI is 0.14.0) — run `mvp-os init` to update it
+Note: .mvp-os/methodology.md is outdated (CLI is 0.15.0) — run `mvp-os sync`
 ```
 
 It stays quiet if you edited the methodology yourself. Being out of step on
 purpose is a decision, not a problem.
 
-> Use `--force` rather than `uv tool upgrade`, which will not move an install
-> pinned to a tag: `...@v0.11.0` stays at v0.11.0, which is what a pin is for.
+> `--reinstall` matters: without it, uv sees a git install as already satisfied
+> and reports nothing to upgrade. And if you pinned a version at install time
+> (`...@v0.11.0`), no upgrade will move it — that is what a pin is for. Install
+> again without the tag to follow the latest release.
 
 ## Removing it
 

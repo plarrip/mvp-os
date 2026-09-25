@@ -427,6 +427,23 @@ def run_handoff(data: dict) -> int:
     return 0
 
 
+def run_sync(project_root: Path) -> int:
+    """Bring a project's copied files back in line with the installed CLI.
+
+    Separate from `init` on purpose. `init` sets a project up; reusing it to
+    mean "update" overloads the verb and hides the operation from anyone
+    looking for it -- nobody searching for how to update reads the help for a
+    command called init.
+    """
+    notices = install_resources(project_root) + write_agent_instructions(project_root)
+    for notice in notices:
+        print(notice)
+    if not notices:
+        print("Already up to date.")
+    print(f"Synced with mvp-os {get_version()}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="mvp-os")
     parser.add_argument(
@@ -444,7 +461,7 @@ def build_parser() -> argparse.ArgumentParser:
     remove = subcommands.add_parser("remove")
     remove.add_argument("--yes", action="store_true")
 
-    for command in ("status", "gate", "next", "review", "validate", "handoff"):
+    for command in ("status", "gate", "next", "review", "validate", "handoff", "sync"):
         subcommands.add_parser(command)
     return parser
 
@@ -559,7 +576,7 @@ def run_read(command: str, data: dict, project_root: Path) -> int:
         if methodology_is_outdated(project_root):
             print(
                 f"Note: .mvp-os/methodology.md is outdated (CLI is "
-                f"{get_version()}) — run `mvp-os init` to update it"
+                f"{get_version()}) — run `mvp-os sync`"
             )
     elif command == "gate":
         print(f"{gate} — {gate_name(gate)}")
@@ -595,6 +612,9 @@ def main() -> int:
     if not state.exists():
         print("MVP-OS is not initialized. Run: mvp-os init")
         return 1
+
+    if args.command == "sync":
+        return run_sync(root())
 
     try:
         data = state.load()

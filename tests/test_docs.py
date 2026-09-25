@@ -16,6 +16,7 @@ METHODOLOGY = files("mvp_os.resources").joinpath("methodology.md").read_text()
 README = (REPO_ROOT / "README.md").read_text()
 COMMANDS = (
     "init", "status", "gate", "next", "review", "validate", "transition", "remove",
+    "sync", "handoff",
 )
 
 
