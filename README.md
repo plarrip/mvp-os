@@ -265,39 +265,44 @@ enforcement belongs here.
 
 ## Updating
 
-Nothing updates itself, and there are two layers. Both need a step.
+When you run `mvp-os init`, it **copies** part of the method into your project:
+`.mvp-os/methodology.md`, and a block inside `AGENTS.md`. Those copies are what
+your agent reads every session — and they do not change when the tool changes.
 
-**1. The CLI**
+```text
+          THE TOOL                            YOUR PROJECTS
+   ~/.local/.../mvp-os                 app-one/.mvp-os/methodology.md
+                          init copies  app-two/.mvp-os/methodology.md
+   updated once  ──────────────────▶   app-three/.mvp-os/methodology.md
+                                       refreshed one by one
+```
+
+So updating takes two commands, in this order.
+
+**1 · Update the tool**
 
 ```bash
 uv tool install --force "git+https://github.com/plarrip/mvp-os"
-# or: pipx install --force "git+https://github.com/plarrip/mvp-os"
-
 mvp-os --version
 ```
 
-Reinstalling with `--force` always works. `uv tool upgrade` will not move an
-install pinned to a tag — `...@v0.11.0` stays at v0.11.0 by design.
-
-**2. Each project**
-
-Updating the CLI does not touch files already written into your projects.
-`.mvp-os/methodology.md` and the `AGENTS.md` block only sync during `init`:
+**2 · Refresh each project that uses it**
 
 ```bash
-cd your-project
-mvp-os init
+cd app-one && mvp-os init
 ```
 
-This is the step people forget, so `mvp-os status` says when a project has
-fallen behind:
+You do not have to remember which projects are behind. `mvp-os status` says so:
 
 ```text
 Note: .mvp-os/methodology.md is outdated (CLI is 0.14.0) — run `mvp-os init` to update it
 ```
 
-It stays quiet if you adapted the methodology yourself. Being out of step on
+It stays quiet if you edited the methodology yourself. Being out of step on
 purpose is a decision, not a problem.
+
+> Use `--force` rather than `uv tool upgrade`, which will not move an install
+> pinned to a tag: `...@v0.11.0` stays at v0.11.0, which is what a pin is for.
 
 ## Removing it
 
