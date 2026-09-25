@@ -150,6 +150,25 @@ def install_methodology(directory: Path) -> list[str]:
     ]
 
 
+def methodology_is_outdated(project_root: Path) -> bool:
+    """Whether the project's methodology is simply old, rather than adapted.
+
+    Installed files only sync during `init`, so a long-running project can sit
+    on a methodology several versions behind the CLI enforcing it -- and that
+    file is what the agent reads every session. The recorded digest is what
+    separates "outdated" from "deliberately different": if the project changed
+    it, being out of step is its own decision and not worth mentioning.
+    """
+    directory = project_root / ".mvp-os"
+    target, stamp = directory / "methodology.md", directory / ".methodology.sha256"
+    if not target.is_file() or not stamp.is_file():
+        return False
+    current = target.read_text(encoding="utf-8")
+    if current == _packaged("methodology.md"):
+        return False
+    return stamp.read_text(encoding="utf-8").strip() == _digest(current)
+
+
 def install_resources(project_root: Path) -> list[str]:
     directory = project_root / ".mvp-os"
     directory.mkdir(parents=True, exist_ok=True)
@@ -499,7 +518,7 @@ def run_transition(state: ProjectState, data: dict, target: str) -> int:
     return 0
 
 
-def run_read(command: str, data: dict) -> int:
+def run_read(command: str, data: dict, project_root: Path) -> int:
     """status/gate/next/review. These must never crash: an agent runs them
     constantly, and a traceback is not a report."""
     shape = validate_shape(data)
@@ -523,6 +542,11 @@ def run_read(command: str, data: dict) -> int:
             f"SDD: {provider}\n"
             f"Next: {next_action}"
         )
+        if methodology_is_outdated(project_root):
+            print(
+                "Note: .mvp-os/methodology.md is outdated — run `mvp-os init` "
+                "to update it"
+            )
     elif command == "gate":
         print(f"{gate} — {gate_name(gate)}")
         lenses = gate_lenses(gate)
@@ -580,10 +604,10 @@ def main() -> int:
 
     if args.command == "handoff":
         if validate_shape(data):
-            return run_read(args.command, data)
+            return run_read(args.command, data, root())
         return run_handoff(data)
 
-    return run_read(args.command, data)
+    return run_read(args.command, data, root())
 
 
 if __name__ == "__main__":

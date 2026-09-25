@@ -82,6 +82,10 @@ its own:
 Instead of writing code, the agent will ask who has the problem, what they do
 today, and what you actually observed.
 
+> **After upgrading MVP-OS**, re-run `mvp-os init` in each project to pick up
+> the new methodology — installed files only sync during `init`. `mvp-os status`
+> tells you when a project has fallen behind.
+
 > **Using an SDD tool?** Initialize it *first* — `specify init --here`, then
 > `mvp-os init`. Detection only happens during `init`. If you get the order
 > wrong, re-run `mvp-os init` and check with `mvp-os status`.

@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.13.0
+
+### Added
+
+- `mvp-os status` reports when `.mvp-os/methodology.md` has fallen behind the
+  installed CLI. Files sync only during `init`, so a long-running project could
+  sit several versions behind the method being enforced, with nothing saying so
+  — and that file is what the agent reads every session.
+
+  Only when the recorded digest proves the project did not edit it. Being out of
+  step deliberately is a decision, not a problem to report, and no digest means
+  local edits cannot be ruled out.
+
 ## 0.12.0
 
 ### Added

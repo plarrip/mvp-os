@@ -402,3 +402,51 @@ def test_reactivating_a_stopped_project_lets_it_move_again(project, run_cli):
     assert run_cli("transition", "G1").returncode == 1
     advance(project, lifecycle={"status": "active"})
     assert "ACCEPTED" in run_cli("transition", "G1").stdout
+
+
+OLD_METHODOLOGY = "# MVP-OS Methodology\n\nAn earlier edition.\n"
+
+
+def _pretend_the_methodology_is_old(project):
+    """An unmodified file from an earlier version: content differs, digest agrees."""
+    import hashlib
+
+    (project / ".mvp-os" / "methodology.md").write_text(OLD_METHODOLOGY)
+    (project / ".mvp-os" / ".methodology.sha256").write_text(
+        hashlib.sha256(OLD_METHODOLOGY.encode("utf-8")).hexdigest()
+    )
+
+
+def test_status_reports_an_outdated_methodology(project, run_cli):
+    """Installed files only sync during init, and that file is what the agent
+    reads every session. Drifting versions behind must not be silent."""
+    _pretend_the_methodology_is_old(project)
+    result = run_cli("status")
+    assert result.returncode == 0
+    assert "methodology.md is outdated" in result.stdout
+    assert "mvp-os init" in result.stdout
+
+
+def test_status_is_quiet_when_the_methodology_is_current(project, run_cli):
+    assert "outdated" not in run_cli("status").stdout
+
+
+def test_status_does_not_nag_about_a_methodology_the_project_adapted(project, run_cli):
+    """Being out of step on purpose is a decision, not a problem to report."""
+    methodology = project / ".mvp-os" / "methodology.md"
+    methodology.write_text(methodology.read_text() + "\n## House amendment\n")
+    assert "outdated" not in run_cli("status").stdout
+
+
+def test_status_says_nothing_when_it_cannot_tell(project, run_cli):
+    """No digest means local edits cannot be ruled out; claiming 'outdated'
+    would invite an init that discards them."""
+    (project / ".mvp-os" / ".methodology.sha256").unlink()
+    (project / ".mvp-os" / "methodology.md").write_text(OLD_METHODOLOGY)
+    assert "outdated" not in run_cli("status").stdout
+
+
+def test_init_clears_the_outdated_notice(project, run_cli):
+    _pretend_the_methodology_is_old(project)
+    run_cli("init")
+    assert "outdated" not in run_cli("status").stdout
