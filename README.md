@@ -83,8 +83,8 @@ Instead of writing code, the agent will ask who has the problem, what they do
 today, and what you actually observed.
 
 > **Using an SDD tool?** Initialize it *first* — `specify init --here`, then
-> `mvp-os init`. Detection only happens during `init`. If you get the order
-> wrong, re-run `mvp-os init` and check with `mvp-os status`.
+> `mvp-os init`. If it arrives afterwards, `mvp-os sync` picks it up. Check
+> with `mvp-os status`.
 
 ---
 

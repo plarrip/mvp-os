@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.16.0
+
+### Fixed
+
+- `mvp-os sync` now re-runs SDD provider detection. Detection ran during `init`
+  alone, which was coherent while `init` was the only way to refresh anything;
+  once sync became the documented update path, a project that gained a provider
+  afterwards was being told to run the one command that could not notice it.
+
+  Found by walking a fresh project through both flows end to end, not by
+  reading the code: the gap was introduced one release earlier and reads
+  perfectly well on the page.
+
+  Sync still refreshes the copied files when the state cannot be parsed, and
+  says it skipped the provider check. The command people reach for when a
+  project is broken must not depend on the part that is broken.
+
 ## 0.15.0
 
 ### Added
