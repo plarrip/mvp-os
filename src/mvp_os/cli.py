@@ -14,6 +14,7 @@ from pathlib import Path
 
 from .lifecycle import (
     gate_index,
+    gate_lenses,
     gate_name,
     gate_requirements_satisfied,
     is_valid_gate,
@@ -524,6 +525,9 @@ def run_read(command: str, data: dict) -> int:
         )
     elif command == "gate":
         print(f"{gate} — {gate_name(gate)}")
+        lenses = gate_lenses(gate)
+        if lenses:
+            print("Lenses: " + ", ".join(lenses))
     elif command == "next":
         print(lifecycle.get("next_action") or "No next action defined.")
     elif command == "review":

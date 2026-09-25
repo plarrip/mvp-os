@@ -59,7 +59,7 @@ CLAUDE.md → AGENTS.md → .mvp-os/methodology.md → .mvp-os/state.yml
 ```bash
 mvp-os init [--name NAME] [--description TEXT]   # set up or refresh a project
 mvp-os status                                    # project, gate, provider, next action
-mvp-os gate                                      # current gate only
+mvp-os gate                                      # current gate and its lenses
 mvp-os next                                      # next action only
 mvp-os review                                    # gate plus evidence counts
 mvp-os validate                                  # deterministic checkpoint
@@ -178,6 +178,21 @@ hypotheses evidence actually supports, which are still assumptions, and what was
 explicitly ruled out. Scope that was decided against is the most expensive thing
 to lose in a handoff, because nothing downstream records that it was ever
 considered.
+
+## Lenses
+
+Each gate names the reasoning roles it calls for, and which framework decides
+when they disagree — `lean` at every gate, product design only until G4,
+business and marketing not before G8. `mvp-os gate` prints the active ones.
+
+They are declared, never enforced: you cannot validate that someone reasoned a
+certain way. How a lens is realised — a subagent, a separate pass, the same
+model changing hats — belongs to the agent harness, exactly as specification
+belongs to the SDD provider. Frameworks conflict, so each gate names one that
+wins; an agent handed Lean and design thinking at once follows whichever it read
+last.
+
+See `.mvp-os/methodology.md` for the table.
 
 ## Removing it
 

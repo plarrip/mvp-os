@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.12.0
+
+### Added
+
+- Lenses: each gate declares the reasoning roles it calls for, and which
+  framework has the last word when they disagree. `lean` at every gate, product
+  design only through G4, business and marketing not before G8. `mvp-os gate`
+  prints the active ones.
+
+  Declared, never enforced — no tool can validate that someone reasoned a
+  certain way — and never executed: how a lens is realised belongs to the agent
+  harness, as specification belongs to the SDD provider.
+
+- A three-pass decision procedure (optimistic, skeptical, judgement) for G8 and
+  for transitions that abandon work.
+
+- Drift guards: the methodology's lens and requirement tables are now checked
+  against the code. The requirements table had only ever been verified by eye.
+
+### Changed
+
+- The methodology states that G8 is where the cycle turns, not where it ends. A
+  shipped MVP does not leave the lifecycle.
+
+  Cost: the per-session read grows from roughly 1,025 to 1,627 tokens. Almost
+  all of it is the lens table, which is the feature.
+
 ## 0.11.0
 
 ### Added

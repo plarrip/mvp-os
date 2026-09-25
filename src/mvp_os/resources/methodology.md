@@ -23,6 +23,12 @@ The lifecycle is a graph, not a ladder. Evidence can move a project forward,
 backward, pause it or stop it. G3 → G2 is a normal move when a hypothesis is
 invalidated. G0 → G7 is never valid.
 
+G8 is a turning point, not a finish line. A shipped MVP does not leave the
+lifecycle: evidence keeps arriving, and G8 leads back to G2, G3 or G4 for the
+next round. The loop does not stop when a product exists, or when a business
+does. Treat "Learning / Decision" as the place the cycle turns, never as the end
+of it.
+
 A paused or stopped project cannot change gates. Something was decided about
 it; resuming is that decision being reversed, and has to be recorded as one by
 setting `lifecycle.status` back to `active`.
@@ -45,6 +51,44 @@ documentation is complete. The minimum MVP-OS enforces:
 
 These are floors, not checklists. Meeting them does not mean a gate should be
 passed; failing them means it cannot be.
+
+## Lenses
+
+Each gate calls for particular ways of reasoning. Roles, not steps: nothing
+checks that they were used, and no gate requires them.
+
+| Gate | Lenses | Last word |
+|---|---|---|
+| G0 Intake | lean | capture, do not judge yet |
+| G1 Problem / User | product, lean | double diamond; diverging on the problem is correct here |
+| G2 Hypotheses | lean | Lean Startup; here diverging is procrastination |
+| G3 Validation Strategy | lean, validation | cheapest credible experiment beats the most rigorous |
+| G4 Product Definition | lean, product | scope is the decision, and less is the default |
+| G5 SDD / Technical | lean, technical | feasibility, and the cost of being wrong |
+| G6 MVP Readiness | lean, technical, legal | what cannot ship |
+| G7 MVP Validation | lean, validation | actionable metrics over flattering ones |
+| G8 Learning / Decision | lean, business, marketing | now there is something real to position |
+
+`lean` is present at every gate; without it the process drifts towards building
+well instead of learning fast.
+
+Frameworks conflict, so each gate names one that decides. Lean says ship the
+smallest thing now, design thinking says explore widely first; given both at
+once, an agent follows whichever it read last. Product design leaves after G4:
+reopening scope during implementation is how an MVP stops being minimal.
+
+## Decisions
+
+Before a decision at G8, and before any transition that abandons work, reason in
+three passes:
+
+1. **Optimistic** — what could work, and what would have to be true for it to.
+2. **Skeptical** — what fails, which assumptions are load-bearing, what the
+   evidence does not cover.
+3. **Judgement** — weigh both against the evidence on record, then decide.
+
+One line of reasoning rationalises the hypothesis it wrote itself. Separating
+proposal from refutation costs one pass and is the cheapest correction there is.
 
 ## Evidence model
 

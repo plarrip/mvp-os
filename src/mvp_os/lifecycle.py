@@ -32,6 +32,38 @@ TRANSITIONS = {
 }
 
 
+# Lenses are reasoning roles, not requirements. MVP-OS declares which ones a
+# gate calls for and stops there: how a lens is realised -- a subagent, a
+# sequential prompt, the same model changing hats -- belongs to the agent
+# harness, exactly as specification belongs to the SDD provider. Nothing here is
+# enforced, because you cannot validate that someone thought a certain way.
+LENSES = {
+    "lean": "Lean Startup: the riskiest assumption first, the cheapest credible test",
+    "product": "Double diamond: diverge on the problem, converge on scope",
+    "validation": "Build-measure-learn: actionable metrics over flattering ones",
+    "technical": "Feasibility and cost of being wrong, not elegance",
+    "legal": "What cannot ship, and what changes if it does",
+    "business": "Business Model Canvas and value-proposition fit",
+    "marketing": "Positioning and channel, once there is something real to position",
+}
+
+# Every gate carries `lean`: without it the process drifts towards building well
+# instead of learning fast. The rest come and go. Product design leaves after
+# G4 -- scope is decided, and reopening it during implementation is how MVPs
+# stop being minimal. Business and marketing only arrive at G8, because
+# positioning a product nobody has used is a guess dressed as a strategy.
+GATE_LENSES = {
+    "G0": ("lean",),
+    "G1": ("product", "lean"),
+    "G2": ("lean",),
+    "G3": ("lean", "validation"),
+    "G4": ("lean", "product"),
+    "G5": ("lean", "technical"),
+    "G6": ("lean", "technical", "legal"),
+    "G7": ("lean", "validation"),
+    "G8": ("lean", "business", "marketing"),
+}
+
 GATE_ORDER = tuple(GATES)
 
 
@@ -43,6 +75,11 @@ def gate_index(gate: str) -> int:
 
 def gate_name(gate: str) -> str:
     return GATES.get(gate, "Unknown")
+
+
+def gate_lenses(gate: str) -> tuple[str, ...]:
+    """Which reasoning roles this gate calls for. Advisory, never enforced."""
+    return GATE_LENSES.get(gate, ())
 
 
 def is_valid_gate(gate: Any) -> bool:

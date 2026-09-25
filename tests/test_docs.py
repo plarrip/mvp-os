@@ -80,3 +80,78 @@ def test_the_agent_is_not_told_how_to_uninstall():
     terminal, with --yes typed out.
     """
     assert "remove" not in AGENT_INSTRUCTIONS
+
+
+def _lens_row(gate: str) -> str:
+    """The gate's row in the Lenses table.
+
+    Scoped to that section on purpose: the requirements table also has a row per
+    gate, and matching the first one would compare against the wrong table.
+    """
+    section = METHODOLOGY[METHODOLOGY.index("## Lenses"):]
+    section = section[: section.index("## Decisions")]
+    for line in section.splitlines():
+        if line.startswith(f"| {gate} "):
+            return line
+    raise AssertionError(f"{gate} has no row in the Lenses table")
+
+
+def test_every_gate_lists_its_lenses_in_the_methodology():
+    """The agent reads the methodology, not lifecycle.py. If the table drifts,
+    it reasons through the wrong roles and nothing reports it."""
+    from mvp_os.lifecycle import GATE_LENSES
+
+    for gate, lenses in GATE_LENSES.items():
+        row = _lens_row(gate)
+        for lens in lenses:
+            assert lens in row, f"{gate} calls for '{lens}', absent from its row"
+
+
+def test_no_lens_is_documented_that_the_code_does_not_know():
+    from mvp_os.lifecycle import GATE_LENSES, LENSES
+
+    used = {lens for lenses in GATE_LENSES.values() for lens in lenses}
+    assert used <= set(LENSES), f"undefined lenses in use: {used - set(LENSES)}"
+
+
+def test_lean_is_present_at_every_gate():
+    """Drop it anywhere and the process drifts towards building well rather
+    than learning fast -- which is the failure the whole method exists for."""
+    from mvp_os.lifecycle import GATE_LENSES
+
+    for gate, lenses in GATE_LENSES.items():
+        assert "lean" in lenses, f"{gate} has no lean lens"
+
+
+def test_lenses_are_advisory_and_never_enforced():
+    """A lens is a way of reasoning. Requiring one would mean validating that
+    someone thought a certain way, which no tool can do.
+
+    Checks the word 'lens' rather than each lens name: several of those names
+    are ordinary words that legitimately appear in requirement messages, such
+    as "at least one validation experiment is required".
+    """
+    import copy
+
+    from mvp_os.lifecycle import gate_requirements_satisfied
+    from mvp_os.state import DEFAULT_STATE
+
+    state = copy.deepcopy(DEFAULT_STATE)
+    for gate in GATES:
+        reported = " ".join(gate_requirements_satisfied(state, gate)).lower()
+        assert "lens" not in reported, f"{gate} turns a lens into a requirement"
+
+
+def test_the_gate_requirement_fields_are_documented():
+    """The requirements table was only ever verified by eye."""
+    for field in (
+        "project.description", "problem.user", "problem.problem",
+        "success_metric", "mvp.scope", "not_required",
+    ):
+        assert field in METHODOLOGY, f"{field} is enforced but undocumented"
+
+
+def test_the_decision_panel_is_documented():
+    lowered = METHODOLOGY.lower()
+    for pass_name in ("optimistic", "skeptical", "judgement"):
+        assert pass_name in lowered
