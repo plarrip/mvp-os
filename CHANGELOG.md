@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Documentation
+
+- The removal instructions said `pip uninstall mvp-os`, while the install
+  instructions said `uv tool` and `pipx`. Those install into their own
+  environments, so pip cannot see the package — and on a machine without a
+  virtualenv active there is often no `pip` on PATH at all, which is how a user
+  hit it. Corrected, and the two removals are now clearly separate: out of one
+  project, and off the machine.
+
 ## 0.16.0
 
 ### Fixed

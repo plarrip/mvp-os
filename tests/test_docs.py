@@ -200,3 +200,11 @@ def test_the_current_version_is_in_the_changelog():
     current = re.search(r'^version = "([^"]+)"', pyproject, re.M).group(1)
     changelog = (REPO_ROOT / "CHANGELOG.md").read_text()
     assert f"## {current}" in changelog, f"{current} has no CHANGELOG entry"
+
+
+def test_the_uninstall_instructions_match_the_install_instructions():
+    """The README recommends `uv tool` and `pipx`, so `pip uninstall` cannot
+    work: those tools install into their own environments, invisible to any pip
+    reachable from a shell. It said so anyway until a user hit it."""
+    assert "pip uninstall" not in README or "will not find it" in README
+    assert "uv tool uninstall" in README

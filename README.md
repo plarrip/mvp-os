@@ -316,10 +316,13 @@ purpose is a decision, not a problem.
 
 ## Removing it
 
+Two separate things.
+
+**Out of one project**
+
 ```bash
 mvp-os remove          # shows exactly what it would touch, changes nothing
 mvp-os remove --yes    # applies it
-pip uninstall mvp-os
 ```
 
 It deletes what it created and cuts out what it added, leaving your own rules in
@@ -329,6 +332,17 @@ from one you would have written.
 
 Files already committed stay in git history. If that matters, do not commit
 `.mvp-os/` — it is your reasoning, not your product.
+
+**Off your machine**
+
+```bash
+uv tool uninstall mvp-os
+# or: pipx uninstall mvp-os
+```
+
+Use whichever you installed with. `pip uninstall` will not find it: a tool
+installed by `uv tool` or `pipx` lives in its own environment, invisible to any
+pip you can reach from a shell.
 
 ---
 
