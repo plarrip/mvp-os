@@ -155,3 +155,26 @@ def test_the_decision_panel_is_documented():
     lowered = METHODOLOGY.lower()
     for pass_name in ("optimistic", "skeptical", "judgement"):
         assert pass_name in lowered
+
+
+def test_the_readme_lens_grid_matches_the_code():
+    """The grid is a picture of GATE_LENSES; a picture that lies is worse than
+    no picture. It was generated from the code, and this keeps it that way."""
+    from mvp_os.lifecycle import GATE_LENSES, LENSES
+
+    section = README[README.index("## Lenses"):]
+    opening = section.index("```text")
+    grid = section[opening: section.index("```", opening + 7)]
+    counts = {
+        lens: sum(1 for lenses in GATE_LENSES.values() if lens in lenses)
+        for lens in LENSES
+    }
+    for line in grid.splitlines():
+        name = line.strip().split(" ")[0]
+        if name in counts:
+            assert line.count("●") == counts[name], (
+                f"the grid shows '{name}' at {line.count('●')} gates, "
+                f"the code has it at {counts[name]}"
+            )
+            del counts[name]
+    assert not counts, f"lenses missing from the README grid: {sorted(counts)}"
