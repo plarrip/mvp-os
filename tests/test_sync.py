@@ -66,3 +66,46 @@ def test_sync_does_not_touch_product_state(project, run_cli):
     advance(project, problem={"user": "Solo founder"})
     run_cli("sync")
     assert read_state(project)["problem"]["user"] == "Solo founder"
+
+
+def test_sync_picks_up_an_sdd_provider_installed_later(project, run_cli):
+    """Detection used to run during init alone. Once sync became the documented
+    update path, a project that gained a provider afterwards would have been
+    told to run the one command that could not notice."""
+    from conftest import read_state
+
+    assert read_state(project)["sdd"]["provider"] == "none"
+    (project / ".specify").mkdir()
+    result = run_cli("sync")
+    assert "sdd.provider -> spec-kit" in result.stdout
+    assert read_state(project)["sdd"]["provider"] == "spec-kit"
+
+
+def test_sync_notices_a_provider_that_went_away(project, run_cli):
+    import shutil
+
+    from conftest import read_state
+
+    (project / ".specify").mkdir()
+    run_cli("sync")
+    shutil.rmtree(project / ".specify")
+    run_cli("sync")
+    assert read_state(project)["sdd"]["provider"] == "none"
+
+
+def test_sync_still_works_when_the_state_cannot_be_read(project, run_cli):
+    """The escape hatch must not depend on the thing being repaired."""
+    (project / ".mvp-os" / "state.yml").write_text("project: [broken\n")
+    result = run_cli("sync")
+    assert result.returncode == 0
+    assert "SDD provider not checked" in result.stdout
+    assert "Traceback" not in result.stderr
+
+
+def test_sync_leaves_product_content_alone_when_it_writes(project, run_cli):
+    from conftest import advance, read_state
+
+    advance(project, problem={"user": "Solo founder"}, hypotheses=[])
+    (project / ".specify").mkdir()
+    run_cli("sync")
+    assert read_state(project)["problem"]["user"] == "Solo founder"

@@ -427,15 +427,35 @@ def run_handoff(data: dict) -> int:
     return 0
 
 
-def run_sync(project_root: Path) -> int:
-    """Bring a project's copied files back in line with the installed CLI.
+def run_sync(project_root: Path, state: ProjectState) -> int:
+    """Bring a project back in line with its environment.
 
     Separate from `init` on purpose. `init` sets a project up; reusing it to
     mean "update" overloads the verb and hides the operation from anyone
     looking for it -- nobody searching for how to update reads the help for a
     command called init.
+
+    Syncs the copied files and re-runs provider detection. Detection used to
+    happen during `init` alone, which made sense while `init` was the only way
+    to refresh anything; once sync became the documented update path, a project
+    that gained an SDD provider afterwards would have been told to run the one
+    command that could not notice.
     """
     notices = install_resources(project_root) + write_agent_instructions(project_root)
+
+    detected = "spec-kit" if detect_spec_kit(project_root) else "none"
+    try:
+        data = state.load()
+    except StateError:
+        # The files are refreshed either way: sync must keep working on a
+        # project whose state is exactly what the user is trying to repair.
+        notices.append("Could not read the state file; SDD provider not checked.")
+    else:
+        sdd = data.get("sdd")
+        if isinstance(sdd, dict) and sdd.get("provider") != detected:
+            sdd["provider"] = detected
+            state.save(data)
+            notices.append(f"Updated sdd.provider -> {detected}")
     for notice in notices:
         print(notice)
     if not notices:
@@ -614,7 +634,7 @@ def main() -> int:
         return 1
 
     if args.command == "sync":
-        return run_sync(root())
+        return run_sync(root(), state)
 
     try:
         data = state.load()
